@@ -18,7 +18,7 @@ class Vectorizor:
         self.regexPattern = '|'.join(map(re.escape, delimiters))
         self.word2vec_model_path = '../models/card_vector_model.model'
         self.keyed_vector_path = '../models/card_vector.kv'
-        self.training_model_path = "../models/training_seq2.p"
+        self.training_model_path = "../models/training_seq.p"
         self.train_seq = []
         
     def load_training_sequence(self):
@@ -44,8 +44,7 @@ class Vectorizor:
         return tokens
 
     def train_model(self, build = False):
-        print("Priming")
-        self.load_training_sequence()
+        print(build)
         if build: self.model.build_vocab(self.train_seq)
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, epochs=self.model.epochs)
         self.model.save(self.word2vec_model_path)
@@ -144,7 +143,7 @@ class Card:
         conn.request('POST', '/api/cards/', body, headers)
         response = conn.getresponse()
     
-def loadData(start_pt = 0):
+def loadData(start_pt = 0, write_to_db = False):
     v = Vectorizor()
     json_file = open('../models/scryfall-default-cards.json')
     data = json.load(json_file)
@@ -153,7 +152,7 @@ def loadData(start_pt = 0):
     count = 0
     for entry in data[start_pt:]:
         c = Card(entry)
-        c.save_to_db()
+        if write_to_db: c.save_to_db()
         count += 1
         obj += v.tokenize_text(c.text, c.name)
         if len(obj)%100 == 0:
@@ -165,7 +164,7 @@ def buildModel(clean = False):
     v = Vectorizor()
     if clean: v.clean_training_model()
     v.load_training_sequence()
-    v.train_model(False)
+    v.train_model(clean)
     v.graph_vocab()
 
-buildModel()
+buildModel(True)

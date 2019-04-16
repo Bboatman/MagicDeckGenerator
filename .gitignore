@@ -4,5 +4,8 @@ magicDeckGenerator/.vscode/
 magicDeckGenerator/.vscode/*
 magicDeckGenerator/models
 *.pyc
+*.model
+*.kv
+*.p
 
 .env
