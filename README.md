@@ -16,13 +16,20 @@ Model priming can be built from magicDeckGenerator/cardVectorizor. If you have a
 - DJANGO_SECRET=$secretDjangoKey
 
 In one terminal start database with
-`python manage.py makemigrations
+
+```
+python manage.py makemigrations
 python manage.py migrate
-python manage.py runserver`
+python manage.py runserver
+```
 
 If not running from database, you can still build the vector models for cards with
-`cd magicDeckGenerator/cardVectorizor
-python vectorizor.py`
+
+```
+cd magicDeckGenerator/cardVectorizor
+python vectorizor.py
+```
+
 Make sure primeModel has write_to_db set to false if you run this way
 
 Built with {6} cups of coffee
