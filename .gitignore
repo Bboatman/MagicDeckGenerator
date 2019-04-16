@@ -7,5 +7,5 @@ magicDeckGenerator/models
 *.model
 *.kv
 *.p
-
+*.json
 .env

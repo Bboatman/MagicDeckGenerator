@@ -32,10 +32,6 @@ class Vectorizor:
             doc = TaggedDocument(simple_preprocess(phrase), [i + count])
             self.train_seq.append(doc)
 
-    def clean_training_model(self):
-        with open(self.training_model_path, "wb" ) as f:
-            pickle.dump([], f)
-
     def tokenize_text(self, text, name):
         txt = text.replace(name, "~self~")
         arr = re.split(self.regexPattern, txt)
@@ -155,16 +151,25 @@ def loadData(start_pt = 0, write_to_db = False):
         if write_to_db: c.save_to_db()
         count += 1
         obj += v.tokenize_text(c.text, c.name)
-        if len(obj)%100 == 0:
+        if len(obj)%1000 == 0:
             print(str(count) + " Processed")
             print(obj[-10:])
             pickle.dump(obj, open( v.training_model_path, "wb" ) )
 
+def primeModel(write_to_db):
+    v = Vectorizor()
+    with open(v.training_model_path, "wb" ) as f:
+        pickle.dump([], f)
+    loadData(write_to_db)
+    model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)    
+    with open(v.word2vec_model_path, "wb" ) as f:
+        model.save(v.word2vec_model_path)
+
 def buildModel(clean = False):
     v = Vectorizor()
-    if clean: v.clean_training_model()
     v.load_training_sequence()
     v.train_model(clean)
     v.graph_vocab()
 
+primeModel(False)
 buildModel(True)
