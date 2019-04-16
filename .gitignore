@@ -1,0 +1,8 @@
+magicDeckGenerator/__pycache__/
+magicDeckGenerator/__pycache__/*
+magicDeckGenerator/.vscode/
+magicDeckGenerator/.vscode/*
+magicDeckGenerator/models
+*.pyc
+
+.env
