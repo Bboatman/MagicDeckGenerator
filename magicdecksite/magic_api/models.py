@@ -25,9 +25,9 @@ class Card(models.Model):
     toughness = models.CharField(max_length=200)
     power = models.CharField(max_length=200)
     cmc = models.BigIntegerField(default=0)
-    text_tsne_1 = models.BigIntegerField(default=0)
-    text_tsne_2 = models.BigIntegerField(default=0)
-    text_tsne_3 = models.BigIntegerField(default=0)
+    text_vector_1 = models.FloatField(default=0.0)
+    text_vector_2 = models.FloatField(default=0.0)
+    text_vector_3 = models.FloatField(default=0.0)
     color_identity = models.IntegerField(
         default=0,
         choices=((0, 'C'), (1, 'R'), (2, 'U'), (3, 'G'), \

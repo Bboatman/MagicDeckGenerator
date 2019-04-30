@@ -1,6 +1,7 @@
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 import http.client
 import json
 import numpy
@@ -10,20 +11,19 @@ import re
 import time
 import copy
 import random 
+import numpy as np
 
 class Vectorizor:
     def __init__(self):
-        print("Intializing")
-        delimiters = "\n", ".", ",", ":"
-        self.regexPattern = '|'.join(map(re.escape, delimiters))
+        print("Initializing")
         self.word2vec_model_path = '../models/card_vector_model.model'
         self.keyed_vector_path = '../models/card_vector.kv'
         self.training_model_path = "../models/training_seq.p"
         self.train_seq = []
         
-    def load_training_sequence(self):
+    def load_training_sequence(self, clean=False):
         obj = pickle.load( open( self.training_model_path, "rb" ) )
-        if len(obj) == 0: 
+        if clean: 
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
             self.model = Doc2Vec.load(self.word2vec_model_path) 
@@ -32,24 +32,35 @@ class Vectorizor:
             doc = TaggedDocument(simple_preprocess(phrase), [i + count])
             self.train_seq.append(doc)
 
-    def tokenize_text(self, text, name):
-        txt = text.replace(name, "~self~")
-        arr = re.split(self.regexPattern, txt)
-        tokens = [x.strip() for x in arr]
-        tokens = filter(None, tokens)
-        return tokens
-
     def train_model(self, build = False):
-        print(build)
-        if build: self.model.build_vocab(self.train_seq)
+        if build: 
+            print("Building Vocab")
+            self.model.build_vocab(self.train_seq)
+        
+        print("Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, epochs=self.model.epochs)
         self.model.save(self.word2vec_model_path)
-        
-    def fit_term(self, term_vector):
-        term_array = self.model.infer_vector(term_vector)
-        tsne = TSNE(n_components=3)
-        result = tsne.fit_transform(term_array)
+
+    def vectorize(self, card_array, n_components=3, save_to_db=False):
+        arr = []
+        for t in card_array:  
+            vec = self.model.infer_vector(t.tokenize_text())
+            arr.append(vec)
+        pca = PCA(n_components=n_components)
+        print("Running PCA on data set")
+        result = pca.fit_transform(np.array(arr))
+
+        print("Mapping Cards")
+        if (n_components == 3):
+            for i,c in enumerate(card_array):
+                pca_1, pca_2, pca_3 = result[i]
+                c.text_vector_1 = pca_1.item()
+                c.text_vector_2 = pca_2.item()
+                c.text_vector_3 = pca_3.item()
+                if(save_to_db): c.save_to_db()
+            print("Cards Saved")
         return result
+        
 
     def graph_vocab(self):
         X = self.model[self.model.wv.vocab]
@@ -61,8 +72,12 @@ class Vectorizor:
         for i, word in enumerate(words):
             pyplot.annotate(word, xy=(result[i, 0], result[i, 1]))
         pyplot.show()
+    
+    #def graph_cards(self, card_array):
 
 class Card:
+    delimiters = "\n", ".", ",", ":"
+    regexPattern = '|'.join(map(re.escape, delimiters))
     id = 0
     multiverse_id = 0
     name = ''
@@ -71,9 +86,9 @@ class Card:
     cmc = 0
     toughness = '~'
     power = '~'
-    text_tsne_1 = 0
-    text_tsne_2 = 0
-    text_tsne_3 = 0
+    text_vector_1 = 0
+    text_vector_2 = 0
+    text_vector_3 = 0
     color_identity = ''
     text = ''
 
@@ -128,6 +143,15 @@ class Card:
             'UGBW': 30, 'RUGBW': 31}
             self.color_identity = choices[color_identity]
 
+    def tokenize_text(self):
+        text = self.text.lower()
+        name = self.name.lower()
+        txt = text.replace(name, "~self~")
+        arr = re.split(self.regexPattern, txt)
+        tokens = [x.strip() for x in arr]
+        tokens = filter(None, tokens)
+        return tokens
+
     def save_to_db(self):
         headers = {'Content-type': 'application/json'}
         d = copy.deepcopy(self.__dict__) 
@@ -137,33 +161,40 @@ class Card:
 
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/cards/', body, headers)
-        response = conn.getresponse()
     
-def loadData(start_pt = 0, write_to_db = False):
-    v = Vectorizor()
+def loadData(v, start_pt = 0, write_to_db = False, progress_print = False):
     json_file = open('../models/scryfall-default-cards.json')
     data = json.load(json_file)
     json_file.close()
     obj = pickle.load( open( v.training_model_path, "rb" ) )
     count = 0
+    card_array = []
+
     for entry in data[start_pt:]:
         c = Card(entry)
-        if write_to_db: c.save_to_db()
+        card_array.append(c)
         count += 1
-        obj += v.tokenize_text(c.text, c.name)
-        if len(obj)%1000 == 0:
-            print(str(count) + " Processed")
-            print(obj[-10:])
+        obj += c.tokenize_text()
+        if len(obj)%2000 == 0:
+            if (progress_print):
+                print(str(count) + " Processed")
+                print(obj[-10:])
             pickle.dump(obj, open( v.training_model_path, "wb" ) )
+
+    return card_array
 
 def primeModel(write_to_db):
     v = Vectorizor()
     with open(v.training_model_path, "wb" ) as f:
         pickle.dump([], f)
-    loadData(write_to_db)
-    model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)    
+    card_array = loadData(v, write_to_db)
+    model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)   
     with open(v.word2vec_model_path, "wb" ) as f:
         model.save(v.word2vec_model_path)
+    
+    v.load_training_sequence(True)
+    v.train_model(True)
+    v.vectorize(card_array, save_to_db=write_to_db)
 
 def buildModel(clean = False):
     v = Vectorizor()
@@ -171,5 +202,5 @@ def buildModel(clean = False):
     v.train_model(clean)
     v.graph_vocab()
 
-primeModel(False)
-buildModel(True)
+primeModel(True)
+#buildModel()

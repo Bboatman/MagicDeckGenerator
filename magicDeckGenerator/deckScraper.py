@@ -11,6 +11,7 @@ import pickle
 
 urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=LE"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
@@ -70,10 +71,9 @@ class DeckScraper:
                 if popped['parent'] == 'https://www.mtgtop8.com/':
                     deck = self.processMtgTop8(html)
 
-            print(len(deck))
-
-            if len(deck) < 50 and len(deck) > 0:
-                self.saveToDB(url, deck)
+            #print(len(deck))
+            #if len(deck) < 50 and len(deck) > 0:
+                #self.saveToDB(url, deck)
             if len(self.to_scrape) > 0:
                 return
 
@@ -139,15 +139,15 @@ class DeckScraper:
                 {'url': link, 'parent': parent_domain}
             )
             if len(self.to_scrape) % 100 == 0:
-                print(len(self.to_scrape))
+                print(len(self.to_scrape), new_url)
     
     def get_id_for_card(self, card_name):
         poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
         if poss:
             if poss[0] is None :
                 print(card_name + " has null id")
-            if poss[0].text:
-                self.vectorizor.tokenize_text(poss[0].text)
+            #if poss[0].text:
+            #    self.vectorizor.tokenize_text(poss[0].text)
             return poss[0].multiverse_id if poss[0].multiverse_id is not None else 0
         else: 
             return 0
@@ -173,3 +173,7 @@ class DeckMember:
 
     def decrease(self, number = 1):
         self.count -= number
+
+ds = DeckScraper([])
+ds.prime()
+ds.build()

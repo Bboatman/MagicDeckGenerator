@@ -38,8 +38,8 @@ class CardSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Card
         fields = ('id', 'multiverse_id', 'name', 'card_type', 'rarity', \
-            'toughness', 'power', 'cmc', 'text_tsne_1', 'text_tsne_2', \
-            'text_tsne_3', 'color_identity')
+            'toughness', 'power', 'cmc', 'text_vector_1', 'text_vector_2', \
+            'text_vector_3', 'color_identity')
 
     def create(self, validated_data):
         return Card.objects.create(**validated_data)
@@ -52,9 +52,9 @@ class CardSerializer(serializers.HyperlinkedModelSerializer):
         instance.power = validated_data.get('power', instance.power)
         instance.rarity = validated_data.get('rarity', instance.rarity)
         instance.cmc = validated_data.get('cmc', instance.cmc)
-        instance.text_tsne_1 = validated_data.get('text_tsne_1', instance.text_tsne_1)
-        instance.text_tsne_2 = validated_data.get('text_tsne_2', instance.text_tsne_2)
-        instance.text_tsne_3 = validated_data.get('text_tsne_3', instance.text_tsne_3)
+        instance.text_vector_1 = validated_data.get('text_vector_1', instance.text_vector_1)
+        instance.text_vector_2 = validated_data.get('text_vector_2', instance.text_vector_2)
+        instance.text_vector_3 = validated_data.get('text_vector_3', instance.text_vector_3)
         instance.color_identity = validated_data.get('color_identity', instance.color_identity)
         instance.save()
         return instance
