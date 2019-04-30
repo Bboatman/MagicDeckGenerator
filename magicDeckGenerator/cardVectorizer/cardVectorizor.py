@@ -12,6 +12,7 @@ import time
 import copy
 import random 
 import numpy as np
+import csv
 
 class Vectorizor:
     def __init__(self):
@@ -22,7 +23,11 @@ class Vectorizor:
         self.train_seq = []
         
     def load_training_sequence(self, clean=False):
-        obj = pickle.load( open( self.training_model_path, "rb" ) )
+        try:
+            obj = pickle.load( open( self.training_model_path, "rb" ) )
+        except:
+            self.get_cards_from_json()
+            obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
@@ -38,21 +43,27 @@ class Vectorizor:
             self.model.build_vocab(self.train_seq)
         
         print("Training Model")
-        self.model.train(self.train_seq, total_examples=self.model.corpus_count, epochs=self.model.epochs)
+        self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
+            epochs=self.model.epochs)
         self.model.save(self.word2vec_model_path)
 
     def vectorize(self, card_array, n_components=3, save_to_db=False):
         arr = []
-        for t in card_array:  
-            vec = self.model.infer_vector(t.tokenize_text())
-            arr.append(vec)
+        name_array = []
+        cleaned_array = []
+        for t in card_array: 
+            if (t.name not in name_array):
+                vec = self.model.infer_vector(t.tokenize_text())
+                arr.append(vec)
+                name_array.append(t.name)
+                cleaned_array.append(t)
         pca = PCA(n_components=n_components)
         print("Running PCA on data set")
         result = pca.fit_transform(np.array(arr))
 
         print("Mapping Cards")
         if (n_components == 3):
-            for i,c in enumerate(card_array):
+            for i,c in enumerate(cleaned_array):
                 pca_1, pca_2, pca_3 = result[i]
                 c.text_vector_1 = pca_1.item()
                 c.text_vector_2 = pca_2.item()
@@ -72,8 +83,78 @@ class Vectorizor:
         for i, word in enumerate(words):
             pyplot.annotate(word, xy=(result[i, 0], result[i, 1]))
         pyplot.show()
+
+    def get_cards_from_json(self, update_training_model= False, \
+        write_to_db = False, progress_print = False):
+        print("Getting cards from JSON")
+        json_file = open('../models/scryfall-default-cards.json')
+        data = json.load(json_file)
+        json_file.close()
+
+        if (update_training_model):
+            obj = []
+        else:
+            try:
+                obj = pickle.load( open( self.training_model_path, "rb" ) )
+            except: 
+                obj = []
+                update_training_model = True
+
+        count = 0
+        card_array = []
+
+        for entry in data:
+            c = Card(entry)
+            card_array.append(c)
+            count += 1
+            obj += c.tokenize_text()
+            if len(obj)%2000 == 0:
+                if (progress_print):
+                    print(str(count) + " Processed")
+                    print(obj[-10:])
+                if (update_training_model):
+                    pickle.dump(obj, open( self.training_model_path, "wb" ) )
+
+        return card_array
+
     
-    #def graph_cards(self, card_array):
+    def graph_cards(self):
+        arr = []
+        card_array = self.get_cards_from_json()
+        name_array = []
+        cleaned_array = []
+        for t in card_array: 
+            if (t.name not in name_array):
+                vec = self.model.infer_vector(t.tokenize_text())
+                arr.append(vec)
+                name_array.append(t.name)
+                cleaned_array.append(t)
+        pca = PCA(n_components=2)
+        print("Running PCA on data set")
+        result = pca.fit_transform(np.array(arr))
+        point_array = []
+        for i,c in enumerate(cleaned_array):
+            color = "#777777"
+            pca_1, pca_2 = result[i]
+            if (c.color_identity > 5):
+                color = "#FFD700"
+            elif (c.color_identity == 5): #White
+                color = "#FFFFFF"
+            elif (c.color_identity == 4): #Black
+                color = "#000000"
+            elif (c.color_identity == 3): #Green
+                color = "#008000"
+            elif (c.color_identity == 2): #Blue
+                color = "#0000FF"
+            elif (c.color_identity == 1): #Red
+                color = "#FF0000"
+            point = [c.name, color, pca_1, pca_2]
+            point_array.append(point)
+        with open('../models/2dGraphPoints.csv', 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerows(point_array)
+
+        csvFile.close()
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -161,33 +242,12 @@ class Card:
 
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/cards/', body, headers)
-    
-def loadData(v, start_pt = 0, write_to_db = False, progress_print = False):
-    json_file = open('../models/scryfall-default-cards.json')
-    data = json.load(json_file)
-    json_file.close()
-    obj = pickle.load( open( v.training_model_path, "rb" ) )
-    count = 0
-    card_array = []
-
-    for entry in data[start_pt:]:
-        c = Card(entry)
-        card_array.append(c)
-        count += 1
-        obj += c.tokenize_text()
-        if len(obj)%2000 == 0:
-            if (progress_print):
-                print(str(count) + " Processed")
-                print(obj[-10:])
-            pickle.dump(obj, open( v.training_model_path, "wb" ) )
-
-    return card_array
 
 def primeModel(write_to_db):
     v = Vectorizor()
     with open(v.training_model_path, "wb" ) as f:
         pickle.dump([], f)
-    card_array = loadData(v, write_to_db)
+    card_array = v.get_cards_from_json(v, write_to_db)
     model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)   
     with open(v.word2vec_model_path, "wb" ) as f:
         model.save(v.word2vec_model_path)
@@ -195,12 +255,13 @@ def primeModel(write_to_db):
     v.load_training_sequence(True)
     v.train_model(True)
     v.vectorize(card_array, save_to_db=write_to_db)
+    v.graph_cards()
 
 def buildModel(clean = False):
     v = Vectorizor()
     v.load_training_sequence()
     v.train_model(clean)
-    v.graph_vocab()
+    v.graph_cards()
 
-primeModel(True)
-#buildModel()
+#primeModel(True)
+buildModel()
