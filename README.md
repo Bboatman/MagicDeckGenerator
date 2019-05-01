@@ -32,4 +32,4 @@ python vectorizor.py
 
 Make sure primeModel has write_to_db set to false if you run this way
 
-Built with {6} cups of coffee
+Built with {8} cups of coffee
