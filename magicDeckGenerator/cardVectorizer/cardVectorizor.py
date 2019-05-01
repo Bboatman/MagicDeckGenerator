@@ -12,6 +12,7 @@ import time
 import copy
 import random
 import csv
+import time
 
 class Vectorizor:
     def __init__(self):
@@ -116,44 +117,42 @@ class Vectorizor:
 
         return card_array
 
+    def decompose_data(self, algorithm, n_components, data, cards):
+        t = time.time()
+        if (algorithm == "TSNE"):
+            alg = TSNE(n_components=n_components)
+        else:
+            alg = PCA(n_components=n_components)
+        result = alg.fit_transform(np.array(data))
+        ret = [[c.name, c.generate_color_hex()] + result[i].tolist() for i, c in enumerate(cards)]
+        path = algorithm + str(n_components) + "dGraphPoints.csv"
+        with open('../models/' + path, 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerows(ret)
+        
+        t = time.time() - t
+        print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
+        return result
     
     def graph_cards(self):
         arr = []
         card_array = self.get_cards_from_json()
-        name_array = []
+        seen_array = []
         cleaned_array = []
+
         for t in card_array: 
-            if (t.name not in name_array):
+            key = t.name + t.text
+            if (key not in seen_array):
                 vec = self.model.infer_vector(t.tokenize_text())
                 arr.append(vec)
-                name_array.append(t.name)
+                seen_array.append(key)
                 cleaned_array.append(t)
-        pca = PCA(n_components=2)
-        print("Running PCA on data set")
-        result = pca.fit_transform(np.array(arr))
-        point_array = []
-        for i,c in enumerate(cleaned_array):
-            color = "#777777"
-            pca_1, pca_2 = result[i]
-            if (c.color_identity > 5):
-                color = "#FFD700"
-            elif (c.color_identity == 5): #White
-                color = "#FFFFFF"
-            elif (c.color_identity == 4): #Black
-                color = "#000000"
-            elif (c.color_identity == 3): #Green
-                color = "#008000"
-            elif (c.color_identity == 2): #Blue
-                color = "#0000FF"
-            elif (c.color_identity == 1): #Red
-                color = "#FF0000"
-            point = [c.name, color, pca_1, pca_2]
-            point_array.append(point)
-        with open('../models/2dGraphPoints.csv', 'w') as csvFile:
-            writer = csv.writer(csvFile)
-            writer.writerows(point_array)
 
-        csvFile.close()
+        print("Running Graphing on Data Set")
+        self.decompose_data("PCA", 2, arr, cleaned_array)
+        self.decompose_data("PCA", 3, arr, cleaned_array)
+        self.decompose_data("TSNE", 2, arr, cleaned_array)
+        self.decompose_data("TSNE", 3, arr, cleaned_array)   
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -223,6 +222,23 @@ class Card:
             'UGBW': 30, 'RUGBW': 31}
             self.color_identity = choices[color_identity]
 
+    def generate_color_hex(self):
+        color = "#777777"
+        if (self.color_identity > 5): #Multicolor Gold
+            color = "#FFD700"
+        elif (self.color_identity == 5): #White
+            color = "#FFFFFF"
+        elif (self.color_identity == 4): #Black
+            color = "#000000"
+        elif (self.color_identity == 3): #Green
+            color = "#008000"
+        elif (self.color_identity == 2): #Blue
+            color = "#0000FF"
+        elif (self.color_identity == 1): #Red
+            color = "#FF0000"
+        
+        return color
+
     def tokenize_text(self):
         text = self.text.lower()
         name = self.name.lower()
@@ -242,7 +258,7 @@ class Card:
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/cards/', body, headers)
 
-def primeModel(write_to_db):
+def buildModel(write_to_db):
     v = Vectorizor()
     with open(v.training_model_path, "wb" ) as f:
         pickle.dump([], f)
@@ -256,11 +272,10 @@ def primeModel(write_to_db):
     v.vectorize(card_array, save_to_db=write_to_db)
     v.graph_cards()
 
-def buildModel(clean = False):
+def runModel():
     v = Vectorizor()
     v.load_training_sequence()
-    v.train_model(clean)
     v.graph_cards()
 
-#primeModel(True)
-buildModel()
+#buildModel(True)
+runModel()
