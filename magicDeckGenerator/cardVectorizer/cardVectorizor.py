@@ -4,14 +4,13 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 import http.client
 import json
-import numpy
+import numpy as np
 from matplotlib import pyplot
 import pickle
 import re 
 import time
 import copy
-import random 
-import numpy as np
+import random
 import csv
 
 class Vectorizor:
