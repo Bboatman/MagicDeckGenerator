@@ -1,4 +1,11 @@
-# Magic Deck Generator
+# Magic: The Gathering Deck Generator
+## Install Python Dependencies
+
+From project root run
+
+```
+pip3 install --user -r requirements.txt
+```
 
 ## Necessary Data
 
