@@ -87,6 +87,7 @@ class Vectorizor:
     def get_cards_from_json(self, update_training_model= False, \
         write_to_db = False, progress_print = False):
         print("Getting cards from JSON")
+        t = time.time()
         json_file = open('../models/scryfall-default-cards.json')
         data = json.load(json_file)
         json_file.close()
@@ -114,7 +115,8 @@ class Vectorizor:
                     print(obj[-10:])
                 if (update_training_model):
                     pickle.dump(obj, open( self.training_model_path, "wb" ) )
-
+        t = time.time() - t
+        print("Got " + str(len(card_array)) + " cards in " + str(t))
         return card_array
 
     def decompose_data(self, algorithm, n_components, data, cards):
@@ -124,13 +126,30 @@ class Vectorizor:
         else:
             alg = PCA(n_components=n_components)
         first_pass = alg.fit_transform(np.array(data))
-        card_values = np.array([[c.rarity, c.color_identity, c.cmc, c.generate_numerical_toughness(), c.generate_numerical_power()] for c in cards])
+        mean = np.mean(first_pass)
+        std = np.std(first_pass)
+        card_values = np.array([[c.get_rarity(mean,std), c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+            c.get_toughness(mean,std), c.get_power(mean,std)] \
+            for c in cards])
         first_pass = np.append(first_pass, card_values, axis=1)
         result = alg.fit_transform(first_pass)
         ret = [[c.name, c.generate_color_hex()] + result[i].tolist() for i, c in enumerate(cards)]
         path = algorithm + str(n_components) + "dGraphPoints.csv"
+
+        fieldnames = ['name', 'color']
+        if (n_components == 2):
+            fieldnames = ['name', 'color', 'x', 'y']
+        elif (n_components == 3):
+            fieldnames = ['name', 'color', 'x', 'y', 'z']
+        else:
+            fieldnames += [str(x) for x in range(n_components)]
         with open('../models/' + path, 'w') as csvFile:
             writer = csv.writer(csvFile)
+            writer.writerow(fieldnames)
+            writer.writerows(ret)
+        with open('../../magicVisualizer/src/assets/data/' + path, 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerow(fieldnames)
             writer.writerows(ret)
         
         t = time.time() - t
@@ -200,7 +219,7 @@ class Card:
         self.cmc = int(json_info['cmc'])
         self.generate_color_identity(json_info['color_identity'])
 
-    def generate_numerical_toughness(self):
+    def get_toughness(self, mean=1, std=1):
         toughness = self.toughness
         if self.toughness == 'x':
             toughness = -1
@@ -210,9 +229,11 @@ class Card:
             toughness = -3
         else:
             toughness = -4
-        return int(toughness)
+        if (int(toughness) > 20):
+            toughness = 20
+        return (int(toughness) * mean) / std
     
-    def generate_numerical_power(self):
+    def get_power(self, mean=1, std=1):
         power = self.power
         if self.power == 'x':
             power = -1
@@ -222,7 +243,21 @@ class Card:
             power = -3
         else:
             power = -4
-        return int(power)
+        if (int(power) > 20):
+            power = 20
+        return (int(power) * mean) / std
+
+    def get_rarity(self, mean=1, std=1):
+        return (self.rarity * mean) / std
+
+    def get_color_identity(self, mean=1, std=1):
+        return (self.color_identity * mean) / std
+
+    def get_cmc(self, mean=1, std=1):
+        if (self.cmc > 20):
+            return 20 * mean / std
+        else:
+            return (self.cmc * mean) / std
 
     def generate_color_identity(self, color_array):
         if len(color_array) == 0:
