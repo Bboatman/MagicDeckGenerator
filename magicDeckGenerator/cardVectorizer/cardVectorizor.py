@@ -123,7 +123,10 @@ class Vectorizor:
             alg = TSNE(n_components=n_components)
         else:
             alg = PCA(n_components=n_components)
-        result = alg.fit_transform(np.array(data))
+        first_pass = alg.fit_transform(np.array(data))
+        card_values = np.array([[c.rarity, c.color_identity, c.cmc, c.generate_numerical_toughness(), c.generate_numerical_power()] for c in cards])
+        first_pass = np.append(first_pass, card_values, axis=1)
+        result = alg.fit_transform(first_pass)
         ret = [[c.name, c.generate_color_hex()] + result[i].tolist() for i, c in enumerate(cards)]
         path = algorithm + str(n_components) + "dGraphPoints.csv"
         with open('../models/' + path, 'w') as csvFile:
@@ -144,15 +147,16 @@ class Vectorizor:
             key = t.name + t.text
             if (key not in seen_array):
                 vec = self.model.infer_vector(t.tokenize_text())
+                vec = np.append(vec, np.array(int()))
                 arr.append(vec)
                 seen_array.append(key)
                 cleaned_array.append(t)
 
         print("Running Graphing on Data Set")
         self.decompose_data("PCA", 2, arr, cleaned_array)
-        self.decompose_data("PCA", 3, arr, cleaned_array)
+        #self.decompose_data("PCA", 3, arr, cleaned_array)
         self.decompose_data("TSNE", 2, arr, cleaned_array)
-        self.decompose_data("TSNE", 3, arr, cleaned_array)   
+        #self.decompose_data("TSNE", 3, arr, cleaned_array)   
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -196,6 +200,30 @@ class Card:
         self.cmc = int(json_info['cmc'])
         self.generate_color_identity(json_info['color_identity'])
 
+    def generate_numerical_toughness(self):
+        toughness = self.toughness
+        if self.toughness == 'x':
+            toughness = -1
+        elif self.toughness == '~':
+            toughness = -2
+        elif self.toughness == '*':
+            toughness = -3
+        else:
+            toughness = -4
+        return int(toughness)
+    
+    def generate_numerical_power(self):
+        power = self.power
+        if self.power == 'x':
+            power = -1
+        elif self.power == '~':
+            power = -2
+        elif self.power == '*':
+            power = -3
+        else:
+            power = -4
+        return int(power)
+
     def generate_color_identity(self, color_array):
         if len(color_array) == 0:
             self.color_identity = 0
@@ -236,7 +264,6 @@ class Card:
             color = "#0000FF"
         elif (self.color_identity == 1): #Red
             color = "#FF0000"
-        
         return color
 
     def tokenize_text(self):
