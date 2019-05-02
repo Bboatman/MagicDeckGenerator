@@ -31,7 +31,7 @@ export class AppComponent {
         this.y = [];
         this.name = [];
         this.color = [];
-        let d = this.getRandomSubarray(parsed.data, 2000);
+        let d = this.getRandomSubarray(parsed.data, 19000);
         let minx = 0;
         let miny = 0;
         for (let elem of d){
@@ -71,7 +71,7 @@ export class AppComponent {
   buildGraph(){
     let marker: any = {
       color: this.color,
-      size: 15,
+      size: 8,
     }
 
     var trace1: Data = {

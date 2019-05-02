@@ -1,6 +1,6 @@
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
-from sklearn.manifold import TSNE
+from sklearn.manifold import TSNE, SpectralEmbedding
 from sklearn.decomposition import PCA
 import http.client
 import json
@@ -123,12 +123,20 @@ class Vectorizor:
         t = time.time()
         if (algorithm == "TSNE"):
             alg = TSNE(n_components=n_components)
+        elif (algorithm == "SpectralEmbeddingNN"):
+            data = data[:9500]
+            cards = cards[:9500]
+            alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
+        elif (algorithm == "SpectralEmbeddingRBF"):
+            data = data[:9500]
+            cards = cards[:9500]
+            alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
         else:
             alg = PCA(n_components=n_components)
         first_pass = alg.fit_transform(np.array(data))
         mean = np.mean(first_pass)
         std = np.std(first_pass)
-        card_values = np.array([[c.get_rarity(mean,std), c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+        card_values = np.array([[c.get_color_identity(mean,std), c.get_cmc(mean,std), \
             c.get_toughness(mean,std), c.get_power(mean,std)] \
             for c in cards])
         first_pass = np.append(first_pass, card_values, axis=1)
@@ -173,9 +181,11 @@ class Vectorizor:
 
         print("Running Graphing on Data Set")
         self.decompose_data("PCA", 2, arr, cleaned_array)
-        #self.decompose_data("PCA", 3, arr, cleaned_array)
+        self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array)  
+        self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
         self.decompose_data("TSNE", 2, arr, cleaned_array)
         #self.decompose_data("TSNE", 3, arr, cleaned_array)   
+        #self.decompose_data("PCA", 3, arr, cleaned_array)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -222,9 +232,9 @@ class Card:
     def get_toughness(self, mean=1, std=1):
         toughness = self.toughness
         if self.toughness == 'x':
-            toughness = -1
-        elif self.toughness == '~':
             toughness = -2
+        elif self.toughness == '~':
+            toughness = -1
         elif self.toughness == '*':
             toughness = -3
         else:
