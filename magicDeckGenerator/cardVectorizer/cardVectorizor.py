@@ -31,11 +31,19 @@ class Vectorizor:
         if clean: 
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
-            self.model = Doc2Vec.load(self.word2vec_model_path) 
+            try:
+                self.model = Doc2Vec.load(self.word2vec_model_path) 
+            except:
+                self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
+                clean = True
+                
         count = len(self.model.docvecs)
         for i, phrase in enumerate(obj):
             doc = TaggedDocument(simple_preprocess(phrase), [i + count])
             self.train_seq.append(doc)
+        
+        if clean:
+            self.train_model(True)
 
     def train_model(self, build = False):
         if build: 
@@ -45,6 +53,9 @@ class Vectorizor:
         print("Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
             epochs=self.model.epochs)
+        if build:
+            f = open(self.word2vec_model_path, "w+")
+            f.close()
         self.model.save(self.word2vec_model_path)
 
     def vectorize(self, card_array, n_components=3, save_to_db=False):
@@ -155,10 +166,12 @@ class Vectorizor:
             writer = csv.writer(csvFile)
             writer.writerow(fieldnames)
             writer.writerows(ret)
+            csvFile.close()
         with open('../../magicVisualizer/src/assets/data/' + path, 'w') as csvFile:
             writer = csv.writer(csvFile)
             writer.writerow(fieldnames)
             writer.writerows(ret)
+            csvFile.close()
         
         t = time.time() - t
         print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
@@ -334,13 +347,9 @@ def buildModel(write_to_db):
     v = Vectorizor()
     with open(v.training_model_path, "wb" ) as f:
         pickle.dump([], f)
+        f.close()
     card_array = v.get_cards_from_json(v, write_to_db)
-    model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)   
-    with open(v.word2vec_model_path, "wb" ) as f:
-        model.save(v.word2vec_model_path)
-    
     v.load_training_sequence(True)
-    v.train_model(True)
     v.vectorize(card_array, save_to_db=write_to_db)
     v.graph_cards()
 

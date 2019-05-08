@@ -1,8 +1,29 @@
-<!--The content below is only a placeholder and can be replaced.-->
+<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 <div style="text-align:center">
   <h1>
     Welcome to the {{ title }}!
   </h1>
+</div>
+<div id="navTools">
+  <form class="example-form">
+  <mat-form-field>
+      <input #sample matInput type="number" placeholder="Sample Size" (keyup)="onSampleChange($event)" ngModel="displayNum">
+    </mat-form-field>
+  </form>
+  <mat-button-toggle-group name="algorithm" (change)="updateAlgorithm($event)" ngModel="selectedBtn" aria-label="Decomposition Algorithm">
+    <mat-button-toggle value="pca">
+      PCA
+    </mat-button-toggle>
+    <mat-button-toggle value="tsne">
+      TSNE
+    </mat-button-toggle>
+    <mat-button-toggle value="sernn">
+      Spectral Embedding KNN
+    </mat-button-toggle>
+    <mat-button-toggle value="blend">
+        Blended Algorithm
+    </mat-button-toggle>
+  </mat-button-toggle-group>
 </div>
 '<plotly-plot [data]="data" [layout]="layout"></plotly-plot>',
 <router-outlet></router-outlet>

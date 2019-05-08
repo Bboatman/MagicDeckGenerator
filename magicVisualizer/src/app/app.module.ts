@@ -6,6 +6,12 @@ import { AppComponent } from './app.component';
 import * as PlotlyJS from 'plotly.js/dist/plotly.js';
 import { PlotlyModule } from 'angular-plotly.js';
 import { PapaParseModule } from 'ngx-papaparse';
+import {MatButtonToggleModule} from '@angular/material/button-toggle';
+import {MatButtonModule} from '@angular/material/button';
+import {MatInputModule} from '@angular/material/input';
+import {MatIconModule} from '@angular/material/icon';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import {MatFormFieldModule} from '@angular/material/form-field';
 
 PlotlyModule.plotlyjs = PlotlyJS;
 
@@ -18,7 +24,13 @@ PlotlyModule.plotlyjs = PlotlyJS;
     AppRoutingModule,
     HttpClientModule,
     PapaParseModule,
-    PlotlyModule
+    PlotlyModule,
+    MatButtonToggleModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatIconModule,
+    BrowserAnimationsModule
   ],
   providers: [],
   bootstrap: [AppComponent]

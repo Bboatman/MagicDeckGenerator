@@ -4,8 +4,5 @@ magicDeckGenerator/.vscode/
 magicDeckGenerator/.vscode/*
 magicDeckGenerator/models
 *.pyc
-*.model
-*.kv
-*.p
-*.json
 .env
+package-lock.json

@@ -1,4 +1,13 @@
 # Magic: The Gathering Deck Generator
+
+## Feeling fancy?
+
+I tried to create a environment setup tool, pretty sure it works. Feeling brave? It can be run with the command below. Use the -h flag to see variable names if you want to use it to set up your .env file automagically.
+
+```
+python3 init.py
+```
+
 ## Install Python Dependencies
 
 From project root run
@@ -39,4 +48,4 @@ python vectorizor.py
 
 Make sure primeModel has write_to_db set to false if you run this way
 
-Built with {8} cups of coffee
+Built with {9} cups of coffee
