@@ -5,3 +5,10 @@
     align-content: center;
     margin: 2vh 3vw;
 }
+
+.stacked{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-content: space-between;
+}

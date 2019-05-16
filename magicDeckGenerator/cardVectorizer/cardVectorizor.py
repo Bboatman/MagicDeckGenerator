@@ -1,19 +1,11 @@
+import json, math, pickle, re, time, copy, random, csv
+import http.client
+import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
 from sklearn.manifold import TSNE, SpectralEmbedding
 from sklearn.decomposition import PCA
-import http.client
-import json
-import numpy as np
 from matplotlib import pyplot
-import math
-import pickle
-import re 
-import time
-import copy
-import random
-import csv
-import time
 
 class Vectorizor:
     def __init__(self):
@@ -36,8 +28,8 @@ class Vectorizor:
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
-                self.twodmodel = Doc2Vec.load(self.word2vec_model_path) 
-                self.model = Doc2Vec.load(self.twod_model_path)
+                self.twodmodel = Doc2Vec.load(self.twod_model_path) 
+                self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
                 print("Failed to load")
                 self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
@@ -123,7 +115,7 @@ class Vectorizor:
             obj = []
         else:
             try:
-                obj = pickle.load( open( self.training_model_path, "rb" ) )
+                obj = pickle.load(open( self.training_model_path, "rb" ))
             except: 
                 obj = []
                 update_training_model = True
@@ -159,23 +151,40 @@ class Vectorizor:
             data = data[:9500]
             cards = cards[:9500]
             alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
-        elif (algorithm == "PCA"):
-            alg = PCA(n_components=n_components)
         else:
-            #TODO: Implement pure doc2vec results
-            pass
+            alg = PCA(n_components=n_components)
+
         first_pass = alg.fit_transform(np.array(data))
         mean = np.mean(first_pass)
         std = np.std(first_pass)
-        print(cards[1].card_type[0])
-        card_values = np.array([[c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
-            c.get_toughness(mean,std), c.get_power(mean,std)] \
-            for c in cards])
-        first_pass = np.append(first_pass, card_values, axis=1)
-        result = alg.fit_transform(first_pass)
-        ret = [[c.name, c.generate_color_hex()] + result[i].tolist() for i, c in enumerate(cards)]
-        path = algorithm + str(n_components) + "dGraphPoints.csv"
 
+        card_values = []
+        flat_pass = []
+        for i, c in enumerate(cards):
+            twodvec = self.twodmodel.infer_vector(c.tokenize_text())
+            if i < 3: 
+                print(twodvec)
+            flat_pass.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+            c.get_toughness(mean,std), c.get_power(mean,std), twodvec[0], twodvec[1]])
+            card_values.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+            c.get_toughness(mean,std), c.get_power(mean,std)])
+        
+        flat_pass = np.array(flat_pass)
+        card_values = np.array(card_values)
+        first_pass = np.append(first_pass, card_values, axis=1)
+        print(card_values[:1])
+        print(first_pass[:1])
+        
+        result = alg.fit_transform(first_pass)
+        flat_result = alg.fit_transform(flat_pass)
+        ret = []
+        flat_ret = []
+        for i,c in enumerate(cards):
+            ret.append([c.name, c.generate_color_hex()] + result[i].tolist())
+            flat_ret.append([c.name, c.generate_color_hex()] + flat_result[i].tolist())
+        
+        path = algorithm + str(n_components) + "dGraphPoints.csv"
+        flat_path = "flat" + algorithm + "2dgraphPoints.csv"
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -183,21 +192,23 @@ class Vectorizor:
             fieldnames = ['name', 'color', 'x', 'y', 'z']
         else:
             fieldnames += [str(x) for x in range(n_components)]
-        with open('../models/' + path, 'w') as csvFile:
-            writer = csv.writer(csvFile)
-            writer.writerow(fieldnames)
-            writer.writerows(ret)
-            csvFile.close()
-        with open('../../magicVisualizer/src/assets/data/' + path, 'w') as csvFile:
-            writer = csv.writer(csvFile)
-            writer.writerow(fieldnames)
-            writer.writerows(ret)
-            csvFile.close()
+
+        self.save_model('../models/' + path, fieldnames, ret)
+        self.save_model('../../magicVisualizer/src/assets/data/' + path, fieldnames, ret)
+        self.save_model('../models/' + flat_path, fieldnames, flat_ret)
+        self.save_model('../../magicVisualizer/src/assets/data/' + flat_ret, fieldnames, flat_ret)
         
         t = time.time() - t
         print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
         return result
     
+    def save_model(self, path, fieldnames, data):
+        with open(path, 'w') as csvFile:
+            writer = csv.writer(csvFile)
+            writer.writerow(fieldnames)
+            writer.writerows(data)
+            csvFile.close()
+
     def graph_cards(self):
         arr = []
         card_array = self.get_cards_from_json()
@@ -215,10 +226,10 @@ class Vectorizor:
                 cleaned_array.append(t)
 
         print("Running Graphing on Data Set")
-        self.decompose_data("PCA", 2, arr, cleaned_array)
-        self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array)  
-        self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
-        self.decompose_data("TSNE", 2, arr, cleaned_array)
+        self.decompose_data("PCA", 2, arr, cleaned_array) 
+        #self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
+        #self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
+        #self.decompose_data("TSNE", 2, arr, cleaned_array)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -263,7 +274,7 @@ class Card:
         self.generate_color_identity(json_info['color_identity'])
 
     def get_card_type(self, model):
-        tokens = self.card_type.lower().replace("//", "split").split()
+        tokens = self.card_type.lower().split()
         return model.infer_vector(tokens)
 
     def get_toughness(self, mean=1, std=1):

@@ -1,27 +1,33 @@
 <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 <div style="text-align:center">
   <h1>
-    Welcome to the {{ title }}!
+    Welcome to the {{ title }}!updateAlgorithm
   </h1>
 </div>
 <div class="navTools">
   <mat-form-field [floatLabel]="'Sample Size'">
     <input matInput name="sample" type="number" placeholder="Sample Size" (keyup)="emit($event, 'sample')" (onChange)="emit($event, 'sample')" [(ngModel)]="displayNum">
   </mat-form-field>
-  <mat-button-toggle-group name="algorithm" (change)="updateAlgorithm($event)" [ngModel]="selectedBtn" aria-label="Decomposition Algorithm">
-    <mat-button-toggle value="pca">
-      PCA
-    </mat-button-toggle>
-    <mat-button-toggle value="tsne">
-      TSNE
-    </mat-button-toggle>
-    <mat-button-toggle value="sernn">
-      Spectral Embedding KNN
-    </mat-button-toggle>
-    <mat-button-toggle value="blend">
+  <div class="stacked">
+    <mat-checkbox (change)="updateAlgorithm($event)" [(ngModel)]="uncompressed">Uncompressed Doc2Vec</mat-checkbox>
+    <mat-button-toggle-group name="algorithm" (change)="updateAlgorithm($event)" [(ngModel)]="selectedBtn" aria-label="Decomposition Algorithm">
+      <mat-button-toggle value="pca">
+        PCA
+      </mat-button-toggle>
+      <mat-button-toggle value="tsne">
+        TSNE
+      </mat-button-toggle>
+      <mat-button-toggle value="sernn">
+        Spectral Embedding KNN
+      </mat-button-toggle>
+      <mat-button-toggle value="serbf">
+        Spectral Embedding RBF
+      </mat-button-toggle>
+      <mat-button-toggle value="blend">
         Blended Algorithm
-    </mat-button-toggle>
-  </mat-button-toggle-group>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
 </div>
 <div class="navTools" *ngIf="selectedBtn == 'blend'">
   <mat-form-field>
@@ -45,8 +51,8 @@
   <mat-form-field [floatLabel]="'Walk Tolerance'">
     <input matInput name="walk" type="number" placeholder="Walk Tolerance" (keyup)="emit($event, 'walk')" (onChange)="emit($event, 'walk')" [(ngModel)]="walkDist">
   </mat-form-field>
-  <mat-form-field [floatLabel]="'TSNE Weight'">
-    <input matInput name="weight" type="number" placeholder="TSNE Weight" (keyup)="emit($event, 'weight')" (onChange)="emit($event, 'weight')"  [(ngModel)]="weight">
+  <mat-form-field [floatLabel]="getGraphName(blend1) +' Weight'">
+    <input matInput name="weight" type="number" placeholder="{{getGraphName(blend1) +' Weight'}}" (keyup)="emit($event, 'weight')" (onChange)="emit($event, 'weight')"  [(ngModel)]="weight">
   </mat-form-field>
 </div>
 '<plotly-plot [data]="data" [layout]="layout"></plotly-plot>',

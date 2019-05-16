@@ -27,7 +27,6 @@ class Card(models.Model):
     cmc = models.BigIntegerField(default=0)
     text_vector_1 = models.FloatField(default=0.0)
     text_vector_2 = models.FloatField(default=0.0)
-    text_vector_3 = models.FloatField(default=0.0)
     color_identity = models.IntegerField(
         default=0,
         choices=((0, 'C'), (1, 'R'), (2, 'U'), (3, 'G'), \

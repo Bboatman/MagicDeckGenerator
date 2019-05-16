@@ -12,20 +12,21 @@ import { element } from '@angular/core/src/render3';
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  title = 'Magic Visualizer';
-  dataUrl = '../assets/data/PCA2dGraphPoints.csv';
   data: Data[];
-  displayNum: number = 3000;
-  walkDist: number = .3;
-  weight: number = 1;
-  selectedBtn: string = "pca";
   x: number[];
   y: number[];
   name: string[];
   color: Color[];
   layout: any;
-  blend1= "tsne"
-  blend2= "serbf"
+  title: string = 'Magic Visualizer';
+  dataUrl: string = '../assets/data/PCA2dGraphPoints.csv';
+  displayNum: number = 3000;
+  walkDist: number = .3;
+  weight: number = 1;
+  selectedBtn: string = "pca";
+  blend1: string = "tsne"
+  blend2: string = "serbf"
+  uncompressed: boolean = false;
   @Output() sampleSizeEmitter: EventEmitter<number> = new EventEmitter();  
   @Output() walkEmitter: EventEmitter<number> = new EventEmitter();
   @Output() weightEmitter: EventEmitter<number> = new EventEmitter();
@@ -153,6 +154,8 @@ export class AppComponent {
         return "T-Distributed Stochastic Neighbor Embedding";
       case "sernn":
         return "Spectral Embedding - K Nearest Neighbors";
+      case "serbf":
+        return "Spectral Embedding - Radial Basis Function";
       case "blend":
         return "Blended Algorithm";
     }
@@ -172,8 +175,7 @@ export class AppComponent {
   }
 
   updateAlgorithm(event){
-    this.dataUrl = this.getDataUrl(event.value)
-    this.selectedBtn = event.value;
+    this.dataUrl = this.getDataUrl(this.selectedBtn)
     if (event.value == 'blend'){
       this.buildAvg();
     } else {
@@ -184,7 +186,11 @@ export class AppComponent {
   getDataUrl(name: string){
     switch (name) {
       case "pca":
-        return '../assets/data/PCA2dGraphPoints.csv';
+        if (this.uncompressed){
+          return '../assets/data/flatPCA2dgraphPoints.csv';
+        } else {
+          return '../assets/data/PCA2dGraphPoints.csv';
+        }
       case "tsne":
         return '../assets/data/TSNE2dGraphPoints.csv';
       case "sernn":
@@ -244,6 +250,7 @@ export class AppComponent {
     this.layout = {
       autosize: true,
       height: 800,
+      hovermode: 'closest',
       title: this.getGraphName() + " - " + this.displayNum + " samples"
     };
   }

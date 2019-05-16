@@ -14,6 +14,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
 import {MatSelectModule} from '@angular/material/select';
+import {MatCheckboxModule} from '@angular/material/checkbox';
 PlotlyModule.plotlyjs = PlotlyJS;
 
 @NgModule({
@@ -32,6 +33,7 @@ PlotlyModule.plotlyjs = PlotlyJS;
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatCheckboxModule,
     MatIconModule,
     BrowserAnimationsModule
   ],
