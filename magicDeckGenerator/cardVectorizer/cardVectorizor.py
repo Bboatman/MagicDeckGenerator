@@ -6,6 +6,7 @@ import http.client
 import json
 import numpy as np
 from matplotlib import pyplot
+import math
 import pickle
 import re 
 import time
@@ -18,6 +19,7 @@ class Vectorizor:
     def __init__(self):
         print("Initializing")
         self.word2vec_model_path = '../models/card_vector_model.model'
+        self.twod_model_path = '../models/card_2d_model.model'
         self.keyed_vector_path = '../models/card_vector.kv'
         self.training_model_path = "../models/training_seq.p"
         self.train_seq = []
@@ -29,11 +31,16 @@ class Vectorizor:
             self.get_cards_from_json()
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
+            print("Cleaning Training Model")
+            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
-                self.model = Doc2Vec.load(self.word2vec_model_path) 
+                self.twodmodel = Doc2Vec.load(self.word2vec_model_path) 
+                self.model = Doc2Vec.load(self.twod_model_path)
             except:
+                print("Failed to load")
+                self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
                 self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
                 
@@ -49,14 +56,21 @@ class Vectorizor:
         if build: 
             print("Building Vocab")
             self.model.build_vocab(self.train_seq)
+            self.twodmodel.build_vocab(self.train_seq)
         
         print("Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
             epochs=self.model.epochs)
+
+        self.twodmodel.train(self.train_seq, total_examples=self.model.corpus_count, \
+            epochs=self.model.epochs)
         if build:
             f = open(self.word2vec_model_path, "w+")
             f.close()
+            f = open(self.twod_model_path, "w+")
+            f.close()
         self.model.save(self.word2vec_model_path)
+        self.twodmodel.save(self.twod_model_path)
 
     def vectorize(self, card_array, n_components=3, save_to_db=False):
         arr = []
@@ -64,7 +78,9 @@ class Vectorizor:
         cleaned_array = []
         for t in card_array: 
             if (t.name not in name_array):
-                vec = self.model.infer_vector(t.tokenize_text())
+                tokens = t.tokenize_text()
+                vec = self.model.infer_vector(tokens)
+                vec = np.append(vec, self.twodmodel.infer_vector(tokens))
                 arr.append(vec)
                 name_array.append(t.name)
                 cleaned_array.append(t)
@@ -117,6 +133,7 @@ class Vectorizor:
 
         for entry in data:
             c = Card(entry)
+            c.card_type = c.get_card_type(self.twodmodel)
             card_array.append(c)
             count += 1
             obj += c.tokenize_text()
@@ -142,12 +159,16 @@ class Vectorizor:
             data = data[:9500]
             cards = cards[:9500]
             alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
-        else:
+        elif (algorithm == "PCA"):
             alg = PCA(n_components=n_components)
+        else:
+            #TODO: Implement pure doc2vec results
+            pass
         first_pass = alg.fit_transform(np.array(data))
         mean = np.mean(first_pass)
         std = np.std(first_pass)
-        card_values = np.array([[c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+        print(cards[1].card_type[0])
+        card_values = np.array([[c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
             c.get_toughness(mean,std), c.get_power(mean,std)] \
             for c in cards])
         first_pass = np.append(first_pass, card_values, axis=1)
@@ -186,8 +207,9 @@ class Vectorizor:
         for t in card_array: 
             key = t.name + t.text
             if (key not in seen_array):
-                vec = self.model.infer_vector(t.tokenize_text())
-                vec = np.append(vec, np.array(int()))
+                tokens = t.tokenize_text()
+                vec = self.model.infer_vector(tokens)
+                vec =  np.append(vec, self.twodmodel.infer_vector(tokens))
                 arr.append(vec)
                 seen_array.append(key)
                 cleaned_array.append(t)
@@ -197,8 +219,6 @@ class Vectorizor:
         self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array)  
         self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
         self.decompose_data("TSNE", 2, arr, cleaned_array)
-        #self.decompose_data("TSNE", 3, arr, cleaned_array)   
-        #self.decompose_data("PCA", 3, arr, cleaned_array)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -242,16 +262,20 @@ class Card:
         self.cmc = int(json_info['cmc'])
         self.generate_color_identity(json_info['color_identity'])
 
+    def get_card_type(self, model):
+        tokens = self.card_type.lower().replace("//", "split").split()
+        return model.infer_vector(tokens)
+
     def get_toughness(self, mean=1, std=1):
         toughness = self.toughness
         if self.toughness == 'x':
-            toughness = -2
+            toughness = math.floor(self.cmc + (self.rarity / 2))
         elif self.toughness == '~':
             toughness = -1
         elif self.toughness == '*':
-            toughness = -3
+            toughness = math.floor(self.cmc + (self.rarity / 2))
         else:
-            toughness = -4
+            toughness = -2
         if (int(toughness) > 20):
             toughness = 20
         return (int(toughness) * mean) / std
@@ -259,13 +283,13 @@ class Card:
     def get_power(self, mean=1, std=1):
         power = self.power
         if self.power == 'x':
-            power = -1
+            power = math.floor(self.cmc + (self.rarity / 2))
         elif self.power == '~':
-            power = -2
+            power = -1
         elif self.power == '*':
-            power = -3
+            power = math.floor(self.cmc + (self.rarity / 2))
         else:
-            power = -4
+            power = -2
         if (int(power) > 20):
             power = 20
         return (int(power) * mean) / std

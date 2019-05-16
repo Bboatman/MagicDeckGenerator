@@ -16,14 +16,20 @@ export class AppComponent {
   dataUrl = '../assets/data/PCA2dGraphPoints.csv';
   data: Data[];
   displayNum: number = 3000;
+  walkDist: number = .3;
+  weight: number = 1;
   selectedBtn: string = "pca";
   x: number[];
   y: number[];
   name: string[];
   color: Color[];
   layout: any;
-  @ViewChild('sample') sampleRef: ElementRef;
+  blend1= "tsne"
+  blend2= "serbf"
   @Output() sampleSizeEmitter: EventEmitter<number> = new EventEmitter();  
+  @Output() walkEmitter: EventEmitter<number> = new EventEmitter();
+  @Output() weightEmitter: EventEmitter<number> = new EventEmitter();
+
   debouncer: Subject<number> = new Subject();
   constructor(
     private papa: Papa,
@@ -31,12 +37,25 @@ export class AppComponent {
   ){
     this.sampleSizeEmitter.pipe(debounceTime(300))
     .subscribe((val) => {
-      if (val != NaN && val != this.displayNum){
-        this.displayNum = Number.parseInt(this.sampleRef.nativeElement.value); 
-        if (this.selectedBtn == 'blend') { 
-          this.buildAvg('../assets/data/TSNE2dGraphPoints.csv','../assets/data/SpectralEmbeddingRBF2dGraphPoints.csv');
-        } else { this.getGraphData(); }
+      console.log(val);
+      if (this.selectedBtn != "blend"){
+        this.getGraphData()
+      } else {
+        this.buildAvg();
       }
+    });
+
+    this.walkEmitter.pipe(debounceTime(300))
+    .subscribe((val) => {
+      console.log(val);
+      console.log("Test");
+      this.buildAvg();
+    });
+
+    this.weightEmitter.pipe(debounceTime(300))
+    .subscribe((val) => {
+      console.log(val);
+      this.buildAvg();
     });
   }
 
@@ -44,9 +63,9 @@ export class AppComponent {
     this.getGraphData();
   }
 
-  buildAvg(url1, url2){
-    let weight = 1;
-    let walk_tolerance = .8;
+  buildAvg(){
+    let url1 = this.getDataUrl(this.blend1);
+    let url2 = this.getDataUrl(this.blend2);
     this.http.get(url1, {responseType: 'text'})
     .subscribe(
       data1 => {
@@ -66,9 +85,9 @@ export class AppComponent {
               let y1 = parseFloat(elem.y);
               let x2 = parseFloat(elem2.x);
               let y2 = parseFloat(elem2.y);
-              if (Math.abs(x1 - x2) <= walk_tolerance && Math.abs(y1 - y2) <= walk_tolerance){
-                elem.x = (x1 * weight + x2) / (weight + 1);
-                elem.y = (y1 * weight + y2) / (weight + 1);
+              if (Math.abs(x1 - x2) + Math.abs(y1 - y2) <= this.walkDist){
+                elem.x = (x1 * this.weight + x2) / (this.weight + 1);
+                elem.y = (y1 * this.weight + y2) / (this.weight + 1);
               } else {
                 elem.x = x1;
                 elem.y = y1;
@@ -153,27 +172,27 @@ export class AppComponent {
   }
 
   updateAlgorithm(event){
-    switch (event.value) {
-      case "pca":
-        this.dataUrl = '../assets/data/PCA2dGraphPoints.csv';
-        break;
-      case "tsne":
-        this.dataUrl = '../assets/data/TSNE2dGraphPoints.csv';
-        break;
-      case "sernn":
-        this.dataUrl = '../assets/data/SpectralEmbeddingNN2dGraphPoints.csv';
-        break;
-      case "serbf":
-        this.dataUrl = '../assets/data/SpectralEmbeddingRBF2dGraphPoints.csv';
-        break;
-      default:
-        this.dataUrl = ""
-    }
+    this.dataUrl = this.getDataUrl(event.value)
     this.selectedBtn = event.value;
     if (event.value == 'blend'){
-      this.buildAvg('../assets/data/TSNE2dGraphPoints.csv','../assets/data/SpectralEmbeddingRBF2dGraphPoints.csv');
+      this.buildAvg();
     } else {
       this.getGraphData();
+    }
+  }
+
+  getDataUrl(name: string){
+    switch (name) {
+      case "pca":
+        return '../assets/data/PCA2dGraphPoints.csv';
+      case "tsne":
+        return '../assets/data/TSNE2dGraphPoints.csv';
+      case "sernn":
+        return '../assets/data/SpectralEmbeddingNN2dGraphPoints.csv';
+      case "serbf":
+        return '../assets/data/SpectralEmbeddingRBF2dGraphPoints.csv';
+      default:
+        return ""
     }
   }
 
@@ -199,10 +218,6 @@ export class AppComponent {
       data[i].y = (y[i] - yMin) / (yMax - yMin);
     }
     return data;
-  }
-
-  onSampleChange(event) {
-    this.sampleSizeEmitter.emit();
   }
 
   buildGraph(){
@@ -231,6 +246,21 @@ export class AppComponent {
       height: 800,
       title: this.getGraphName() + " - " + this.displayNum + " samples"
     };
+  }
 
+  emit(event: any, type: string){
+    console.log("emitting!");
+    console.log(type);
+    switch (type) {
+      case 'weight':
+        this.weightEmitter.emit(this.weight);
+        break;
+      case 'walk':
+        this.walkEmitter.emit(this.walkDist);
+        break;
+      case 'sample':
+        this.sampleSizeEmitter.emit(this.displayNum);
+        break;
+    }
   }
 }

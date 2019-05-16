@@ -4,13 +4,11 @@
     Welcome to the {{ title }}!
   </h1>
 </div>
-<div id="navTools">
-  <form class="example-form">
-  <mat-form-field>
-      <input #sample matInput type="number" placeholder="Sample Size" (keyup)="onSampleChange($event)" ngModel="displayNum">
-    </mat-form-field>
-  </form>
-  <mat-button-toggle-group name="algorithm" (change)="updateAlgorithm($event)" ngModel="selectedBtn" aria-label="Decomposition Algorithm">
+<div class="navTools">
+  <mat-form-field [floatLabel]="'Sample Size'">
+    <input matInput name="sample" type="number" placeholder="Sample Size" (keyup)="emit($event, 'sample')" (onChange)="emit($event, 'sample')" [(ngModel)]="displayNum">
+  </mat-form-field>
+  <mat-button-toggle-group name="algorithm" (change)="updateAlgorithm($event)" [ngModel]="selectedBtn" aria-label="Decomposition Algorithm">
     <mat-button-toggle value="pca">
       PCA
     </mat-button-toggle>
@@ -24,6 +22,32 @@
         Blended Algorithm
     </mat-button-toggle>
   </mat-button-toggle-group>
+</div>
+<div class="navTools" *ngIf="selectedBtn == 'blend'">
+  <mat-form-field>
+    <mat-label>Select an option</mat-label>
+    <mat-select [(value)]="blend1" (selectionChange)="buildAvg()">
+      <mat-option value="pca" [disabled]="blend2 == 'pca'">PCA</mat-option>
+      <mat-option value="tsne" [disabled]="blend2 == 'tsne'">TSNE</mat-option>
+      <mat-option value="sernn" [disabled]="blend2 == 'sernn'">Spectral Embedding KNN</mat-option>
+      <mat-option value="serbf" [disabled]="blend2 == 'serbf'">Spectral Embedding RBF</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Select an option</mat-label>
+    <mat-select [(value)]="blend2" (selectionChange)="buildAvg()">
+      <mat-option value="pca" [disabled]="blend1 == 'pca'">PCA</mat-option>
+      <mat-option value="tsne" [disabled]="blend1 == 'tsne'">TSNE</mat-option>
+      <mat-option value="sernn" [disabled]="blend1 == 'sernn'">Spectral Embedding KNN</mat-option>
+      <mat-option value="serbf" [disabled]="blend1 == 'serbf'">Spectral Embedding RBF</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field [floatLabel]="'Walk Tolerance'">
+    <input matInput name="walk" type="number" placeholder="Walk Tolerance" (keyup)="emit($event, 'walk')" (onChange)="emit($event, 'walk')" [(ngModel)]="walkDist">
+  </mat-form-field>
+  <mat-form-field [floatLabel]="'TSNE Weight'">
+    <input matInput name="weight" type="number" placeholder="TSNE Weight" (keyup)="emit($event, 'weight')" (onChange)="emit($event, 'weight')"  [(ngModel)]="weight">
+  </mat-form-field>
 </div>
 '<plotly-plot [data]="data" [layout]="layout"></plotly-plot>',
 <router-outlet></router-outlet>

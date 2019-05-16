@@ -1,6 +1,7 @@
-#navTools{
+.navTools{
     display: flex;
     flex-direction: row;
-    justify-content: space-around;
+    justify-content: space-between;
     align-content: center;
+    margin: 2vh 3vw;
 }
