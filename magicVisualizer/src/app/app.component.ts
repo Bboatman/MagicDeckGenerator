@@ -20,6 +20,7 @@ export class AppComponent {
   layout: any;
   title: string = 'Magic Visualizer';
   dataUrl: string = '../assets/data/PCA2dGraphPoints.csv';
+  trainDim: number = 5;
   displayNum: number = 3000;
   walkDist: number = .3;
   weight: number = 1;
@@ -38,7 +39,6 @@ export class AppComponent {
   ){
     this.sampleSizeEmitter.pipe(debounceTime(300))
     .subscribe((val) => {
-      console.log(val);
       if (this.selectedBtn != "blend"){
         this.getGraphData()
       } else {
@@ -48,14 +48,11 @@ export class AppComponent {
 
     this.walkEmitter.pipe(debounceTime(300))
     .subscribe((val) => {
-      console.log(val);
-      console.log("Test");
       this.buildAvg();
     });
 
     this.weightEmitter.pipe(debounceTime(300))
     .subscribe((val) => {
-      console.log(val);
       this.buildAvg();
     });
   }
@@ -184,19 +181,32 @@ export class AppComponent {
   }
 
   getDataUrl(name: string){
+    let url = this.trainDim + 'dGraphPoints.csv'
     switch (name) {
       case "pca":
         if (this.uncompressed){
-          return '../assets/data/flatPCA2dgraphPoints.csv';
+          return '../assets/data/flatPCA' + url;
         } else {
-          return '../assets/data/PCA2dGraphPoints.csv';
+          return '../assets/data/PCA' + url;
         }
       case "tsne":
-        return '../assets/data/TSNE2dGraphPoints.csv';
+        if (this.uncompressed){
+          return '../assets/data/flatTSNE' + url;
+        } else {
+          return '../assets/data/TSNE' + url;
+        }
       case "sernn":
-        return '../assets/data/SpectralEmbeddingNN2dGraphPoints.csv';
+        if (this.uncompressed){
+          return '../assets/data/flatSpectralEmbeddingNN' + url;
+        } else {
+          return '../assets/data/SpectralEmbeddingNN' + url;
+        }
       case "serbf":
-        return '../assets/data/SpectralEmbeddingRBF2dGraphPoints.csv';
+        if (this.uncompressed){
+          return '../assets/data/flatSpectralEmbeddingRBF' + url;
+        } else {
+          return '../assets/data/SpectralEmbeddingRBF' + url;
+        }
       default:
         return ""
     }
@@ -256,8 +266,6 @@ export class AppComponent {
   }
 
   emit(event: any, type: string){
-    console.log("emitting!");
-    console.log(type);
     switch (type) {
       case 'weight':
         this.weightEmitter.emit(this.weight);
@@ -265,7 +273,7 @@ export class AppComponent {
       case 'walk':
         this.walkEmitter.emit(this.walkDist);
         break;
-      case 'sample':
+      default:
         this.sampleSizeEmitter.emit(this.displayNum);
         break;
     }

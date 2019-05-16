@@ -1,12 +1,15 @@
 <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 <div style="text-align:center">
   <h1>
-    Welcome to the {{ title }}!updateAlgorithm
+    Welcome to the {{ title }}!
   </h1>
 </div>
 <div class="navTools">
   <mat-form-field [floatLabel]="'Sample Size'">
     <input matInput name="sample" type="number" placeholder="Sample Size" (keyup)="emit($event, 'sample')" (onChange)="emit($event, 'sample')" [(ngModel)]="displayNum">
+  </mat-form-field>
+  <mat-form-field [floatLabel]="'Pretraining Dimesionality'">
+    <input matInput name="trainDim" type="number" placeholder="Pretraining Dimesionality" (keyup)="emit($event, 'trainDim')" (onChange)="emit($event, 'trainDim')" [(ngModel)]="trainDim">
   </mat-form-field>
   <div class="stacked">
     <mat-checkbox (change)="updateAlgorithm($event)" [(ngModel)]="uncompressed">Uncompressed Doc2Vec</mat-checkbox>
