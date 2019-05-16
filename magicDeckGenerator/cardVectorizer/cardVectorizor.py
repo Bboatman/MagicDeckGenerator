@@ -155,25 +155,31 @@ class Vectorizor:
             alg = PCA(n_components=n_components)
 
         first_pass = alg.fit_transform(np.array(data))
+        flat_pass = []
+        for c in cards:
+            twodvec = self.twodmodel.infer_vector(c.tokenize_text())
+            flat_pass.append([twodvec[0], twodvec[1]])
+        flat_pass = np.array(flat_pass)
+
+        flat_mean = np.mean(flat_pass)
+        flat_std = np.std(flat_pass)            
         mean = np.mean(first_pass)
         std = np.std(first_pass)
 
         card_values = []
-        flat_pass = []
-        for i, c in enumerate(cards):
-            twodvec = self.twodmodel.infer_vector(c.tokenize_text())
-            if i < 3: 
-                print(twodvec)
-            flat_pass.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
-            c.get_toughness(mean,std), c.get_power(mean,std), twodvec[0], twodvec[1]])
-            card_values.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+        flat_values = []
+        for c in cards:
+            type1 = c.card_type[0]
+            type2 = c.card_type[1]
+            flat_values.append([type1, type2, c.get_color_identity(flat_mean,flat_std), c.get_cmc(flat_mean,flat_std), \
+            c.get_toughness(flat_mean,flat_std), c.get_power(flat_mean,flat_std)])
+            card_values.append([type1, type2, c.get_color_identity(mean,std), c.get_cmc(mean,std), \
             c.get_toughness(mean,std), c.get_power(mean,std)])
         
-        flat_pass = np.array(flat_pass)
+        flat_values = np.array(flat_values)
         card_values = np.array(card_values)
         first_pass = np.append(first_pass, card_values, axis=1)
-        print(card_values[:1])
-        print(first_pass[:1])
+        flat_pass = np.append(flat_pass, flat_values, axis=1)
         
         result = alg.fit_transform(first_pass)
         flat_result = alg.fit_transform(flat_pass)
@@ -196,7 +202,7 @@ class Vectorizor:
         self.save_model('../models/' + path, fieldnames, ret)
         self.save_model('../../magicVisualizer/src/assets/data/' + path, fieldnames, ret)
         self.save_model('../models/' + flat_path, fieldnames, flat_ret)
-        self.save_model('../../magicVisualizer/src/assets/data/' + flat_ret, fieldnames, flat_ret)
+        self.save_model('../../magicVisualizer/src/assets/data/' + flat_path, fieldnames, flat_ret)
         
         t = time.time() - t
         print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
@@ -378,20 +384,9 @@ class Card:
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/cards/', body, headers)
 
-def buildModel(write_to_db):
-    v = Vectorizor()
-    with open(v.training_model_path, "wb" ) as f:
-        pickle.dump([], f)
-        f.close()
-    card_array = v.get_cards_from_json(v, write_to_db)
-    v.load_training_sequence(True)
-    v.vectorize(card_array, save_to_db=write_to_db)
-    v.graph_cards()
-
 def runModel():
     v = Vectorizor()
     v.load_training_sequence()
     v.graph_cards()
 
-#buildModel(True)
 runModel()
