@@ -233,9 +233,9 @@ class Vectorizor:
 
         print("Running Graphing on Data Set")
         self.decompose_data("PCA", 2, arr, cleaned_array) 
-        #self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
-        #self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
-        #self.decompose_data("TSNE", 2, arr, cleaned_array)
+        self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
+        self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
+        self.decompose_data("TSNE", 2, arr, cleaned_array)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
