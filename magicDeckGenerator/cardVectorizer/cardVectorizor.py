@@ -10,8 +10,9 @@ from matplotlib import pyplot
 class Vectorizor:
     def __init__(self):
         print("Initializing")
+        self.model_dimensionality = 5
         self.word2vec_model_path = '../models/card_vector_model.model'
-        self.twod_model_path = '../models/card_2d_model.model'
+        self.twod_model_path = '../models/card_' + str(self.model_dimensionality) + 'd_model.model'
         self.keyed_vector_path = '../models/card_vector.kv'
         self.training_model_path = "../models/training_seq.p"
         self.train_seq = []
@@ -24,7 +25,7 @@ class Vectorizor:
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
             print("Cleaning Training Model")
-            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
+            self.twodmodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
@@ -32,7 +33,7 @@ class Vectorizor:
                 self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
                 print("Failed to load")
-                self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
+                self.twodmodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
                 self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
                 
@@ -72,7 +73,6 @@ class Vectorizor:
             if (t.name not in name_array):
                 tokens = t.tokenize_text()
                 vec = self.model.infer_vector(tokens)
-                vec = np.append(vec, self.twodmodel.infer_vector(tokens))
                 arr.append(vec)
                 name_array.append(t.name)
                 cleaned_array.append(t)
@@ -142,23 +142,23 @@ class Vectorizor:
     def decompose_data(self, algorithm, n_components, data, cards):
         t = time.time()
         if (algorithm == "TSNE"):
-            alg = TSNE(n_components=n_components)
+            alg = TSNE(n_components=self.model_dimensionality)
         elif (algorithm == "SpectralEmbeddingNN"):
             data = data[:9500]
             cards = cards[:9500]
-            alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
+            alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="nearest_neighbors")
         elif (algorithm == "SpectralEmbeddingRBF"):
             data = data[:9500]
             cards = cards[:9500]
-            alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
+            alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="rbf")
         else:
-            alg = PCA(n_components=n_components)
+            alg = PCA(n_components=self.model_dimensionality)
 
         first_pass = alg.fit_transform(np.array(data))
         flat_pass = []
         for c in cards:
-            twodvec = self.twodmodel.infer_vector(c.tokenize_text())
-            flat_pass.append([twodvec[0], twodvec[1]])
+            new_arr = [c.twodvec[x] for x in range(self.model_dimensionality)]
+            flat_pass.append(new_arr)
         flat_pass = np.array(flat_pass)
 
         flat_mean = np.mean(flat_pass)
@@ -181,16 +181,34 @@ class Vectorizor:
         first_pass = np.append(first_pass, card_values, axis=1)
         flat_pass = np.append(flat_pass, flat_values, axis=1)
         
+
+        if (algorithm == "TSNE"):
+            alg = TSNE(n_components=n_components)
+        elif (algorithm == "SpectralEmbeddingNN"):
+            data = data[:9500]
+            cards = cards[:9500]
+            alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
+        elif (algorithm == "SpectralEmbeddingRBF"):
+            data = data[:9500]
+            cards = cards[:9500]
+            alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
+        else:
+            alg = PCA(n_components=n_components)
+
         result = alg.fit_transform(first_pass)
         flat_result = alg.fit_transform(flat_pass)
+        t = time.time() - t
+        print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
         ret = []
         flat_ret = []
         for i,c in enumerate(cards):
-            ret.append([c.name, c.generate_color_hex()] + result[i].tolist())
-            flat_ret.append([c.name, c.generate_color_hex()] + flat_result[i].tolist())
+            name = c.name
+            hexVal = c.generate_color_hex()
+            ret.append([name, hexVal] + result[i].tolist())
+            flat_ret.append([name, hexVal] + flat_result[i].tolist())
         
         path = algorithm + str(n_components) + "dGraphPoints.csv"
-        flat_path = "flat" + algorithm + "2dgraphPoints.csv"
+        flat_path = "flat" + algorithm + str(self.model_dimensionality) + "dgraphPoints.csv"
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -199,34 +217,45 @@ class Vectorizor:
         else:
             fieldnames += [str(x) for x in range(n_components)]
 
-        self.save_model('../models/' + path, fieldnames, ret)
-        self.save_model('../../magicVisualizer/src/assets/data/' + path, fieldnames, ret)
-        self.save_model('../models/' + flat_path, fieldnames, flat_ret)
-        self.save_model('../../magicVisualizer/src/assets/data/' + flat_path, fieldnames, flat_ret)
+        with open('../models/' + path, 'w+') as localRet:
+            writer = csv.writer(localRet)
+            writer.writerow(fieldnames)
+            writer.writerows(ret)
+            localRet.close()
+
+        with open('../../magicVisualizer/src/assets/data/' + path, 'w+') as visRet:
+            writer = csv.writer(visRet)
+            writer.writerow(fieldnames)
+            writer.writerows(ret)
+            visRet.close()
         
-        t = time.time() - t
-        print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
+        with open('../models/' + flat_path, 'w+') as localFlat:
+            writer = csv.writer(localFlat)
+            writer.writerow(fieldnames)
+            writer.writerows(flat_ret)
+            localFlat.close()
+
+        with open('../../magicVisualizer/src/assets/data/' + flat_path, 'w+') as visFlat:
+            writer = csv.writer(visFlat)
+            writer.writerow(fieldnames)
+            writer.writerows(flat_ret)
+            visFlat.close()
+        print("Data Saved")
         return result
     
-    def save_model(self, path, fieldnames, data):
-        with open(path, 'w') as csvFile:
-            writer = csv.writer(csvFile)
-            writer.writerow(fieldnames)
-            writer.writerows(data)
-            csvFile.close()
-
     def graph_cards(self):
         arr = []
         card_array = self.get_cards_from_json()
         seen_array = []
         cleaned_array = []
 
+        print("Cleaning Card Array")
         for t in card_array: 
             key = t.name + t.text
             if (key not in seen_array):
                 tokens = t.tokenize_text()
                 vec = self.model.infer_vector(tokens)
-                vec =  np.append(vec, self.twodmodel.infer_vector(tokens))
+                t.twodvec = self.twodmodel.infer_vector(tokens)
                 arr.append(vec)
                 seen_array.append(key)
                 cleaned_array.append(t)
