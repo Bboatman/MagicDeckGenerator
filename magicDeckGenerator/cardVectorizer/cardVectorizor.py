@@ -8,13 +8,15 @@ from sklearn.decomposition import PCA
 from matplotlib import pyplot
 
 class Vectorizor:
-    def __init__(self):
+    def __init__(self, model_dimensionality = 5):
         print("Initializing")
-        self.model_dimensionality = 5
+        self.model_dimensionality = model_dimensionality
         self.word2vec_model_path = '../models/card_vector_model.model'
-        self.twod_model_path = '../models/card_' + str(self.model_dimensionality) + 'd_model.model'
+        self.model_dimensionality_path ='../models/card_' + str(self.model_dimensionality) + 'd_model.model'
+        self.twod_model_path = '../models/card_2d_model.model'
         self.keyed_vector_path = '../models/card_vector.kv'
         self.training_model_path = "../models/training_seq.p"
+        self.card_data_path = "../models/card_data.p"
         self.train_seq = []
         
     def load_training_sequence(self, clean=False):
@@ -25,14 +27,17 @@ class Vectorizor:
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
             print("Cleaning Training Model")
-            self.twodmodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
+            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
+            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
                 self.twodmodel = Doc2Vec.load(self.twod_model_path) 
+                self.multimodel = Doc2Vec.load(self.model_dimensionality_path) 
                 self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
                 print("Failed to load")
+                self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
                 self.twodmodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
                 self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
@@ -54,16 +59,20 @@ class Vectorizor:
         print("Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
             epochs=self.model.epochs)
-
+        self.multimodel.train(self.train_seq, total_examples=self.model.corpus_count, \
+            epochs=self.model.epochs)
         self.twodmodel.train(self.train_seq, total_examples=self.model.corpus_count, \
             epochs=self.model.epochs)
         if build:
             f = open(self.word2vec_model_path, "w+")
             f.close()
+            f = open(self.model_dimensionality_path, "w+")
+            f.close()
             f = open(self.twod_model_path, "w+")
             f.close()
         self.model.save(self.word2vec_model_path)
         self.twodmodel.save(self.twod_model_path)
+        self.multimodel.save(self.model_dimensionality_path)
 
     def vectorize(self, card_array, n_components=3, save_to_db=False):
         arr = []
@@ -135,6 +144,7 @@ class Vectorizor:
                     print(obj[-10:])
                 if (update_training_model):
                     pickle.dump(obj, open( self.training_model_path, "wb" ) )
+        
         t = time.time() - t
         print("Got " + str(len(card_array)) + " cards in " + str(t))
         return card_array
@@ -144,12 +154,8 @@ class Vectorizor:
         if (algorithm == "TSNE"):
             alg = TSNE(n_components=self.model_dimensionality)
         elif (algorithm == "SpectralEmbeddingNN"):
-            data = data[:9500]
-            cards = cards[:9500]
             alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="nearest_neighbors")
         elif (algorithm == "SpectralEmbeddingRBF"):
-            data = data[:9500]
-            cards = cards[:9500]
             alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="rbf")
         else:
             alg = PCA(n_components=self.model_dimensionality)
@@ -157,7 +163,7 @@ class Vectorizor:
         first_pass = alg.fit_transform(np.array(data))
         flat_pass = []
         for c in cards:
-            new_arr = [c.twodvec[x] for x in range(self.model_dimensionality)]
+            new_arr = [c.simple_vec[x] for x in range(self.model_dimensionality)]
             flat_pass.append(new_arr)
         flat_pass = np.array(flat_pass)
 
@@ -179,18 +185,13 @@ class Vectorizor:
         flat_values = np.array(flat_values)
         card_values = np.array(card_values)
         first_pass = np.append(first_pass, card_values, axis=1)
-        flat_pass = np.append(flat_pass, flat_values, axis=1)
-        
+        flat_pass = np.append(flat_pass, flat_values, axis=1)        
 
         if (algorithm == "TSNE"):
             alg = TSNE(n_components=n_components)
         elif (algorithm == "SpectralEmbeddingNN"):
-            data = data[:9500]
-            cards = cards[:9500]
             alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
         elif (algorithm == "SpectralEmbeddingRBF"):
-            data = data[:9500]
-            cards = cards[:9500]
             alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
         else:
             alg = PCA(n_components=n_components)
@@ -207,8 +208,8 @@ class Vectorizor:
             ret.append([name, hexVal] + result[i].tolist())
             flat_ret.append([name, hexVal] + flat_result[i].tolist())
         
-        path = algorithm + str(n_components) + "dGraphPoints.csv"
-        flat_path = "flat" + algorithm + str(self.model_dimensionality) + "dgraphPoints.csv"
+        path = algorithm + str(self.model_dimensionality) + "dGraphPoints.csv"
+        flat_path = "flat" + algorithm + str(self.model_dimensionality) + "dGraphPoints.csv"
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -245,26 +246,31 @@ class Vectorizor:
     
     def graph_cards(self):
         arr = []
-        card_array = self.get_cards_from_json()
-        seen_array = []
-        cleaned_array = []
 
-        print("Cleaning Card Array")
-        for t in card_array: 
-            key = t.name + t.text
-            if (key not in seen_array):
-                tokens = t.tokenize_text()
-                vec = self.model.infer_vector(tokens)
-                t.twodvec = self.twodmodel.infer_vector(tokens)
-                arr.append(vec)
-                seen_array.append(key)
-                cleaned_array.append(t)
+        try:
+            arr, cleaned_array = pickle.load(open( self.card_data_path, "rb" ))
+        except:
+            card_array = self.get_cards_from_json()
+            print("Cleaning Card Array")
+            seen_array = []
+            cleaned_array = []
+            for t in card_array: 
+                key = t.name + t.text
+                if (key not in seen_array):
+                    tokens = t.tokenize_text()
+                    vec = self.model.infer_vector(tokens)
+                    t.simple_vec = self.multimodel.infer_vector(tokens)
+                    arr.append(vec)
+                    seen_array.append(key)
+                    cleaned_array.append(t)
+            pickle.dump([arr, cleaned_array], open( self.card_data_path, "wb" ) )
 
         print("Running Graphing on Data Set")
         self.decompose_data("PCA", 2, arr, cleaned_array) 
         self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
         self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
-        self.decompose_data("TSNE", 2, arr, cleaned_array)
+        if (self.model_dimensionality) < 4:
+            self.decompose_data("TSNE", 2, arr, cleaned_array)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -282,6 +288,7 @@ class Card:
     text_vector_3 = 0
     color_identity = ''
     text = ''
+    simple_vec = []
 
     def __str__(self):
         return self.name + " - " + str(self.multiverse_id) + ": " + self.card_type + "\n" + \
@@ -413,9 +420,13 @@ class Card:
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/cards/', body, headers)
 
-def runModel():
-    v = Vectorizor()
+def runModel(model_dimensionality):
+    v = Vectorizor(model_dimensionality)
     v.load_training_sequence()
     v.graph_cards()
 
-runModel()
+for x in range(2, 8):
+    try:
+        runModel(x)
+    except:
+        print("Failed in " + str(x))
