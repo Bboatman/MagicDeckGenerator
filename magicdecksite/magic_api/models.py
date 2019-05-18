@@ -25,8 +25,6 @@ class Card(models.Model):
     toughness = models.CharField(max_length=200)
     power = models.CharField(max_length=200)
     cmc = models.BigIntegerField(default=0)
-    text_vector_1 = models.FloatField(default=0.0)
-    text_vector_2 = models.FloatField(default=0.0)
     color_identity = models.IntegerField(
         default=0,
         choices=((0, 'C'), (1, 'R'), (2, 'U'), (3, 'G'), \
@@ -44,11 +42,30 @@ class Card(models.Model):
     def __str__(self):
         return self.name + " - " + self.multiverse_id + ": " + self.card_type
 
+class Card_Vector_Point(models.Model):
+    id = models.AutoField(primary_key=True)
+    card_id = models.ForeignKey(Card, on_delete=models.CASCADE)
+    x_value = models.FloatField(default=0)
+    y_value = models.FloatField(default=0)
+    algorithm = models.CharField(max_length=200)
+    alg_weight = models.BigIntegerField(default=0)
+
+    class Meta:
+        ordering = ('id',)
+
+    def __str__(self):
+        return self.card_name + " : " + self.algorithm + alg_weight + " - x: " + \
+            self.x_value + ", y: " + self.y_value
+
 class Deck_Detail(models.Model):
-    deck_id: models.ForeignKey(Deck, on_delete=models.CASCADE)
-    card_id: models.ForeignKey(Card, on_delete=models.SET_NULL)
-    count: models.BigIntegerField(default=0)
-    significance: models.FloatField(default=0)
+    id = models.AutoField(primary_key=True)
+    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
+    card_id = models.ForeignKey(Card, on_delete=models.CASCADE)
+    count = models.BigIntegerField(default=0)
+    significance = models.FloatField(default=0)
+
+    class Meta:
+        ordering = ('id',)
 
     def __str__(self):
         return self.deck_id + " - " + self.card_id
