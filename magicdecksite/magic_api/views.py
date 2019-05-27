@@ -22,7 +22,7 @@ class CardViewSet(viewsets.ModelViewSet):
     queryset = Card.objects.all()
     serializer_class = CardSerializer
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'PUT'])
 @permission_classes((permissions.AllowAny,))
 def card_list(request):
     if request.method == 'GET':
@@ -36,6 +36,23 @@ def card_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'PUT':
+        req_name = request.data['name']
+        try:
+            card = Card.objects.filter(name=req_name)[:1].get()
+            serializer = CardSerializer(card, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            serializer = CardSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes((permissions.AllowAny,))
@@ -148,7 +165,7 @@ class CardVectorViewSet(viewsets.ModelViewSet):
     queryset = Card_Vector_Point.objects.all()
     serializer_class = CardVectorPointSerializer
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'PUT'])
 @permission_classes((permissions.AllowAny,))
 def card_vector_list(request):
     if request.method == 'GET':
@@ -162,6 +179,25 @@ def card_vector_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PUT':
+        req_id = request.data['card']
+        req_alg = request.data['algorithm']
+        req_weight = request.data['alg_weight']
+        try:
+            point = Card_Vector_Point.objects.filter(card=req_id, algorithm=req_alg, \
+                 alg_weight=req_weight)[:1].get()
+            serializer = CardVectorPointSerializer(point, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            serializer = CardVectorPointSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes((permissions.AllowAny,))

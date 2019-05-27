@@ -5,7 +5,7 @@ class Deck(models.Model):
     deck_size = models.BigIntegerField(default=0)
     unique_count = models.BigIntegerField(default=0)
     name = models.CharField(max_length=200)
-    url = models.CharField(max_length=200)
+    url = models.CharField(max_length=200, unique=True)
 
     class Meta:
         ordering = ('id',)
@@ -17,11 +17,11 @@ class Deck(models.Model):
 class Card(models.Model):
     id = models.AutoField(primary_key=True)
     multiverse_id = models.BigIntegerField(default=0)
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     rarity = models.IntegerField(
         default=0,
         choices=((0, 'common'), (1, 'uncommon'), (2, 'rare'), (3, 'mythic')))
-    card_type = models.CharField(max_length=200)
+    card_type = models.FloatField(default=0)
     toughness = models.CharField(max_length=200)
     power = models.CharField(max_length=200)
     cmc = models.BigIntegerField(default=0)
@@ -44,7 +44,7 @@ class Card(models.Model):
 
 class Card_Vector_Point(models.Model):
     id = models.AutoField(primary_key=True)
-    card_id = models.ForeignKey(Card, on_delete=models.CASCADE)
+    card = models.ForeignKey(Card, to_field='name', on_delete=models.CASCADE)
     x_value = models.FloatField(default=0)
     y_value = models.FloatField(default=0)
     algorithm = models.CharField(max_length=200)
@@ -59,8 +59,8 @@ class Card_Vector_Point(models.Model):
 
 class Deck_Detail(models.Model):
     id = models.AutoField(primary_key=True)
-    deck_id = models.ForeignKey(Deck, on_delete=models.CASCADE)
-    card_id = models.ForeignKey(Card, on_delete=models.CASCADE)
+    deck = models.ForeignKey(Deck, on_delete=models.CASCADE)
+    card = models.ForeignKey(Card, on_delete=models.CASCADE)
     count = models.BigIntegerField(default=0)
     significance = models.FloatField(default=0)
 

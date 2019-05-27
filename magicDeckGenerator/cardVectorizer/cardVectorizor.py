@@ -38,7 +38,7 @@ class Vectorizor:
             except:
                 print("Failed to load")
                 self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
-                self.twodmodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
+                self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
                 self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
                 
@@ -55,6 +55,7 @@ class Vectorizor:
             print("Building Vocab")
             self.model.build_vocab(self.train_seq)
             self.twodmodel.build_vocab(self.train_seq)
+            self.multimodel.build_vocab(self.train_seq)
         
         print("Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
@@ -73,44 +74,6 @@ class Vectorizor:
         self.model.save(self.word2vec_model_path)
         self.twodmodel.save(self.twod_model_path)
         self.multimodel.save(self.model_dimensionality_path)
-
-    def vectorize(self, card_array, n_components=3, save_to_db=False):
-        arr = []
-        name_array = []
-        cleaned_array = []
-        for t in card_array: 
-            if (t.name not in name_array):
-                tokens = t.tokenize_text()
-                vec = self.model.infer_vector(tokens)
-                arr.append(vec)
-                name_array.append(t.name)
-                cleaned_array.append(t)
-        pca = PCA(n_components=n_components)
-        print("Running PCA on data set")
-        result = pca.fit_transform(np.array(arr))
-
-        print("Mapping Cards")
-        if (n_components == 3):
-            for i,c in enumerate(cleaned_array):
-                pca_1, pca_2, pca_3 = result[i]
-                c.text_vector_1 = pca_1.item()
-                c.text_vector_2 = pca_2.item()
-                c.text_vector_3 = pca_3.item()
-                if(save_to_db): c.save_to_db()
-            print("Cards Saved")
-        return result
-        
-
-    def graph_vocab(self):
-        X = self.model[self.model.wv.vocab]
-        tsne = TSNE(n_components=3)
-        result = tsne.fit_transform(X)
-        # create a scatter plot of the projection
-        pyplot.scatter(result[:, 0], result[:, 1])
-        words = list(self.model.wv.vocab)
-        for i, word in enumerate(words):
-            pyplot.annotate(word, xy=(result[i, 0], result[i, 1]))
-        pyplot.show()
 
     def get_cards_from_json(self, update_training_model= False, \
         write_to_db = False, progress_print = False):
@@ -175,11 +138,10 @@ class Vectorizor:
         card_values = []
         flat_values = []
         for c in cards:
-            type1 = c.card_type[0]
-            type2 = c.card_type[1]
-            flat_values.append([type1, type2, c.get_color_identity(flat_mean,flat_std), c.get_cmc(flat_mean,flat_std), \
+            c_type = c.card_type[0] + c.card_type[1]
+            flat_values.append([c_type, c.get_color_identity(flat_mean,flat_std), c.get_cmc(flat_mean,flat_std), \
             c.get_toughness(flat_mean,flat_std), c.get_power(flat_mean,flat_std)])
-            card_values.append([type1, type2, c.get_color_identity(mean,std), c.get_cmc(mean,std), \
+            card_values.append([c_type, c.get_color_identity(mean,std), c.get_cmc(mean,std), \
             c.get_toughness(mean,std), c.get_power(mean,std)])
         
         flat_values = np.array(flat_values)
@@ -203,6 +165,10 @@ class Vectorizor:
         ret = []
         flat_ret = []
         for i,c in enumerate(cards):
+            x, y = result[i].tolist()
+            fx, fy = flat_result[i].tolist()
+            c.save_decomp_res("naive", fx, fy, self.model_dimensionality)
+            c.save_decomp_res(algorithm, x, y, self.model_dimensionality)
             name = c.name
             hexVal = c.generate_color_hex()
             ret.append([name, hexVal] + result[i].tolist())
@@ -244,9 +210,8 @@ class Vectorizor:
         print("Data Saved")
         return result
     
-    def graph_cards(self):
+    def graph_cards(self, save_to_db):
         arr = []
-
         try:
             arr, cleaned_array = pickle.load(open( self.card_data_path, "rb" ))
         except:
@@ -263,13 +228,15 @@ class Vectorizor:
                     arr.append(vec)
                     seen_array.append(key)
                     cleaned_array.append(t)
+                    if save_to_db:
+                        t.save_to_db()
             pickle.dump([arr, cleaned_array], open( self.card_data_path, "wb" ) )
 
         print("Running Graphing on Data Set")
         self.decompose_data("PCA", 2, arr, cleaned_array) 
         self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
         self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
-        if (self.model_dimensionality) < 4:
+        if (self.model_dimensionality) <= 4:
             self.decompose_data("TSNE", 2, arr, cleaned_array)
 
 class Card:
@@ -283,9 +250,6 @@ class Card:
     cmc = 0
     toughness = '~'
     power = '~'
-    text_vector_1 = 0
-    text_vector_2 = 0
-    text_vector_3 = 0
     color_identity = ''
     text = ''
     simple_vec = []
@@ -298,7 +262,7 @@ class Card:
     def __init__(self, json_info):
         if 'multiverse_ids' in json_info and len(json_info['multiverse_ids']) > 0:
             self.multiverse_id = json_info['multiverse_ids'][0]
-        self.name = json_info['name']
+        self.name = json_info['name'].lower()
         if 'power' in json_info:
             self.power = json_info['power']
         else: 
@@ -415,18 +379,31 @@ class Card:
         d = copy.deepcopy(self.__dict__) 
         if 'text' in d:
             d.pop('text') 
+        if 'simple_vec' in d:
+            d.pop('simple_vec')
+        d['card_type'] = float(self.card_type[0] + self.card_type[1])
+        
         body = json.dumps(d)
-
         conn = http.client.HTTPConnection('localhost:8000')
-        conn.request('POST', '/api/cards/', body, headers)
+        conn.request('PUT', '/api/cards/', body, headers)
+
+    def save_decomp_res(self, alg, x, y, dimension):
+        ret = {
+            "x_value": x,
+            "y_value": y,
+            "algorithm": alg
+        }
+        ret["alg_weight"] = dimension
+        ret["card"] = self.name
+        
+        body = json.dumps(ret)
+        headers = {'Content-type': 'application/json'}
+        conn = http.client.HTTPConnection('localhost:8000')
+        conn.request('PUT', '/api/card_vector/', body, headers)
 
 def runModel(model_dimensionality):
     v = Vectorizor(model_dimensionality)
     v.load_training_sequence()
-    v.graph_cards()
+    v.graph_cards(True)
 
-for x in range(2, 8):
-    try:
-        runModel(x)
-    except:
-        print("Failed in " + str(x))
+runModel(4)

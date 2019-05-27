@@ -13,8 +13,8 @@ urlpatterns = [
     path('cards/<int:pk>', views.card_detail),
     path('deck/', views.deck_list),
     path('deck/<int:pk>', views.deck_info),
-    path('card_vector/', views.card_vector_info),
-    path('card_vector/<int:pk>', views.card_vector_list),
+    path('card_vector/', views.card_vector_list),
+    path('card_vector/<int:pk>', views.card_vector_info),
     path('deck_detail/', views.deck_detail_info),
     path('deck_detail/<int:pk>', views.deck_detail_list),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
