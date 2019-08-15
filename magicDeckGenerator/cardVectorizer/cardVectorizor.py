@@ -1,22 +1,27 @@
-import json, math, pickle, re, time, copy, random, csv
+import json, math, pickle, re, time, copy, random, csv, gc, traceback, os
 import http.client
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
-from sklearn.manifold import TSNE, SpectralEmbedding
+from sklearn.manifold import TSNE, SpectralEmbedding, MDS
 from sklearn.decomposition import PCA
+from sklearn import preprocessing
 from matplotlib import pyplot
+from playsound import playsound
 
 class Vectorizor:
     def __init__(self, model_dimensionality = 5):
         print("Initializing")
+        import os
+        dirname = os.path.dirname(__file__)
         self.model_dimensionality = model_dimensionality
-        self.word2vec_model_path = '../models/card_vector_model.model'
-        self.model_dimensionality_path ='../models/card_' + str(self.model_dimensionality) + 'd_model.model'
-        self.twod_model_path = '../models/card_2d_model.model'
-        self.keyed_vector_path = '../models/card_vector.kv'
-        self.training_model_path = "../models/training_seq.p"
-        self.card_data_path = "../models/card_data.p"
+        self.card_json_path = os.path.join(dirname, '../models/scryfall-default-cards.json')
+        self.word2vec_model_path = os.path.join(dirname,'../models/card_vector_model.model')
+        self.model_dimensionality_path = os.path.join(dirname, '../models/card_' + str(self.model_dimensionality) + 'd_model.model')
+        self.twod_model_path = os.path.join(dirname,'../models/card_2d_model.model')
+        self.keyed_vector_path = os.path.join(dirname,'../models/card_vector.kv')
+        self.training_model_path = os.path.join(dirname,"../models/training_seq.p")
+        self.card_data_path = os.path.join(dirname,"../models/card_data.p")
         self.train_seq = []
         
     def load_training_sequence(self, clean=False):
@@ -79,7 +84,7 @@ class Vectorizor:
         write_to_db = False, progress_print = False):
         print("Getting cards from JSON")
         t = time.time()
-        json_file = open('../models/scryfall-default-cards.json')
+        json_file = open(self.card_json_path)
         data = json.load(json_file)
         json_file.close()
 
@@ -112,10 +117,12 @@ class Vectorizor:
         print("Got " + str(len(card_array)) + " cards in " + str(t))
         return card_array
 
-    def decompose_data(self, algorithm, n_components, data, cards):
+    def decompose_data(self, algorithm, n_components, cards, naive, save_to_db):
         t = time.time()
         if (algorithm == "TSNE"):
             alg = TSNE(n_components=self.model_dimensionality)
+        elif (algorithm == "MDS"):
+            alg = MDS(n_components=self.model_dimensionality)
         elif (algorithm == "SpectralEmbeddingNN"):
             alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="nearest_neighbors")
         elif (algorithm == "SpectralEmbeddingRBF"):
@@ -123,34 +130,29 @@ class Vectorizor:
         else:
             alg = PCA(n_components=self.model_dimensionality)
 
-        first_pass = alg.fit_transform(np.array(data))
-        flat_pass = []
-        for c in cards:
-            new_arr = [c.simple_vec[x] for x in range(self.model_dimensionality)]
-            flat_pass.append(new_arr)
-        flat_pass = np.array(flat_pass)
-
-        flat_mean = np.mean(flat_pass)
-        flat_std = np.std(flat_pass)            
+        gc.collect()
+        if not naive:
+            data = [c.long_vec for c in cards]
+            first_pass = alg.fit_transform(np.array(data))
+        else:
+            first_pass = np.array([c.simple_vec for c in cards])
+        
+        print("First Pass Complete")
+        card_values = []
         mean = np.mean(first_pass)
         std = np.std(first_pass)
 
-        card_values = []
-        flat_values = []
         for c in cards:
-            c_type = c.card_type[0] + c.card_type[1]
-            flat_values.append([c_type, c.get_color_identity(flat_mean,flat_std), c.get_cmc(flat_mean,flat_std), \
-            c.get_toughness(flat_mean,flat_std), c.get_power(flat_mean,flat_std)])
-            card_values.append([c_type, c.get_color_identity(mean,std), c.get_cmc(mean,std), \
-            c.get_toughness(mean,std), c.get_power(mean,std)])
+            card_values.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean, std), c.get_cmc(mean, std), \
+            c.get_toughness(mean, std), c.get_power(mean, std)])
         
-        flat_values = np.array(flat_values)
         card_values = np.array(card_values)
-        first_pass = np.append(first_pass, card_values, axis=1)
-        flat_pass = np.append(flat_pass, flat_values, axis=1)        
+        first_pass = np.append(first_pass, card_values, axis=1) 
 
         if (algorithm == "TSNE"):
             alg = TSNE(n_components=n_components)
+        elif (algorithm == "MDS"):
+            alg = MDS(n_components=n_components)
         elif (algorithm == "SpectralEmbeddingNN"):
             alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
         elif (algorithm == "SpectralEmbeddingRBF"):
@@ -158,24 +160,31 @@ class Vectorizor:
         else:
             alg = PCA(n_components=n_components)
 
-        result = alg.fit_transform(first_pass)
-        flat_result = alg.fit_transform(flat_pass)
+        gc.collect()
+        algname = algorithm
+        try:
+            result = alg.fit_transform(first_pass)
+        except:
+            print("Failed second pass, defaulting to PCA")
+            alg = PCA(n_components=n_components)
+            result = alg.fit_transform(first_pass)
+
         t = time.time() - t
         print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
         ret = []
-        flat_ret = []
+
+        if naive:
+            algname = "naive" + algorithm
         for i,c in enumerate(cards):
             x, y = result[i].tolist()
-            fx, fy = flat_result[i].tolist()
-            c.save_decomp_res("naive", fx, fy, self.model_dimensionality)
-            c.save_decomp_res(algorithm, x, y, self.model_dimensionality)
+            if (save_to_db):
+                c.save_decomp_res(algname, x, y, self.model_dimensionality)
             name = c.name
             hexVal = c.generate_color_hex()
             ret.append([name, hexVal] + result[i].tolist())
-            flat_ret.append([name, hexVal] + flat_result[i].tolist())
         
-        path = algorithm + str(self.model_dimensionality) + "dGraphPoints.csv"
-        flat_path = "flat" + algorithm + str(self.model_dimensionality) + "dGraphPoints.csv"
+        dirname = os.path.dirname(__file__)
+        path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -184,60 +193,36 @@ class Vectorizor:
         else:
             fieldnames += [str(x) for x in range(n_components)]
 
-        with open('../models/' + path, 'w+') as localRet:
-            writer = csv.writer(localRet)
-            writer.writerow(fieldnames)
-            writer.writerows(ret)
-            localRet.close()
-
-        with open('../../magicVisualizer/src/assets/data/' + path, 'w+') as visRet:
-            writer = csv.writer(visRet)
-            writer.writerow(fieldnames)
-            writer.writerows(ret)
-            visRet.close()
-        
-        with open('../models/' + flat_path, 'w+') as localFlat:
-            writer = csv.writer(localFlat)
-            writer.writerow(fieldnames)
-            writer.writerows(flat_ret)
-            localFlat.close()
-
-        with open('../../magicVisualizer/src/assets/data/' + flat_path, 'w+') as visFlat:
-            writer = csv.writer(visFlat)
-            writer.writerow(fieldnames)
-            writer.writerows(flat_ret)
-            visFlat.close()
         print("Data Saved")
         return result
     
-    def graph_cards(self, save_to_db):
-        arr = []
-        try:
-            arr, cleaned_array = pickle.load(open( self.card_data_path, "rb" ))
-        except:
-            card_array = self.get_cards_from_json()
-            print("Cleaning Card Array")
-            seen_array = []
-            cleaned_array = []
-            for t in card_array: 
-                key = t.name + t.text
-                if (key not in seen_array):
-                    tokens = t.tokenize_text()
-                    vec = self.model.infer_vector(tokens)
-                    t.simple_vec = self.multimodel.infer_vector(tokens)
-                    arr.append(vec)
-                    seen_array.append(key)
-                    cleaned_array.append(t)
-                    if save_to_db:
-                        t.save_to_db()
-            pickle.dump([arr, cleaned_array], open( self.card_data_path, "wb" ) )
+    def build_clean_array(self, save_to_db):
+        card_array = self.get_cards_from_json()
+        print("Cleaning Card Array")
+        seen_array = []
+        cleaned_array = []
+        for t in card_array: 
+            key = t.name + t.text
+            if (key not in seen_array):
+                tokens = t.tokenize_text()
+                t.simple_vec = self.multimodel.infer_vector(tokens)
+                t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
+                seen_array.append(key)
+                cleaned_array.append(t)
+                if save_to_db:
+                    t.save_to_db()
+        return cleaned_array
 
+
+    def graph_cards(self, save_to_db):
+        cleaned_array = self.build_clean_array(save_to_db)
         print("Running Graphing on Data Set")
-        self.decompose_data("PCA", 2, arr, cleaned_array) 
-        self.decompose_data("SpectralEmbeddingRBF", 2, arr, cleaned_array)
-        self.decompose_data("SpectralEmbeddingNN", 2, arr, cleaned_array) 
-        if (self.model_dimensionality) <= 4:
-            self.decompose_data("TSNE", 2, arr, cleaned_array)
+        algs = ["PCA", "SpectralEmbeddingRBF", "SpectralEmbeddingNN", "TSNE"]
+        for alg in algs[1:]:
+            gc.collect()
+            self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
+            gc.collect()
+            self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -253,6 +238,7 @@ class Card:
     color_identity = ''
     text = ''
     simple_vec = []
+    long_vec = []
 
     def __str__(self):
         return self.name + " - " + str(self.multiverse_id) + ": " + self.card_type + "\n" + \
@@ -381,6 +367,8 @@ class Card:
             d.pop('text') 
         if 'simple_vec' in d:
             d.pop('simple_vec')
+        if 'long_vec' in d:
+            d.pop('long_vec')
         d['card_type'] = float(self.card_type[0] + self.card_type[1])
         
         body = json.dumps(d)
@@ -404,6 +392,12 @@ class Card:
 def runModel(model_dimensionality):
     v = Vectorizor(model_dimensionality)
     v.load_training_sequence()
-    v.graph_cards(True)
+    v.graph_cards(False)
 
-runModel(4)
+def main():
+    try:
+        runModel(4)
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
+    except Exception as e: 
+        traceback.print_exc()
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
