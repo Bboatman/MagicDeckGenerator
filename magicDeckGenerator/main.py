@@ -77,7 +77,7 @@ def readInData(model_dimensionality, first_pass=True, alg=None):
     return data
 
 dimen = [3,4,5,6,7,10,25,50]
-algs = [None, 'PCA', 'TSNE', "SpectralEmbeddingNN"]
+algs = ['TSNE', "SpectralEmbeddingRBF"]
 
 for alg in algs[1:]:
     for i in dimen:

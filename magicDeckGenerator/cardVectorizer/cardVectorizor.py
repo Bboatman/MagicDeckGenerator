@@ -401,3 +401,5 @@ def main():
     except Exception as e: 
         traceback.print_exc()
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
+
+main()
