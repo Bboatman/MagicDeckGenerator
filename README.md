@@ -91,3 +91,10 @@ Okay, now what? So we turned some magic cards into numbers, and that was cool, b
 ### Scraping Time!
 
 Built with {10} cups of coffee
+
+
+## Implementation Ideas
+Optimize an existing deck
+Build a deck from exisiting card set
+Build a deck around certain cards
+Build a deck using specific colors

@@ -76,18 +76,6 @@ def readInData(model_dimensionality, first_pass=True, alg=None):
         data = np.concatenate((data, np.array(card_data)), axis=1)
     return data
 
-dimen = [3,4,5,6,7,10,25,50]
-algs = ['TSNE', "SpectralEmbeddingRBF"]
-
-for alg in algs[1:]:
-    for i in dimen:
-        for a in algs:
-            data = readInData(i, False, a)
-            learn(data, i, alg, alg + str(a))
-
-
-print(readInData(5, False)[0])
-
 def saveCardData():
     cv = Vectorizor()
     v = Vectorizor(2)
@@ -122,3 +110,16 @@ def scrape_sites():
         obj = {"seen" : dS.seen, "to_scrape": dS.to_scrape}
         pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
         raise
+
+if __name__ == "__main__":
+    dimen = [2,3]
+    algs = ['TSNE', "PCA"]
+
+    for alg in algs[1:]:
+        for i in dimen:
+            for a in algs:
+                data = readInData(i, False, a)
+                learn(data, i, alg, alg + str(a))
+
+
+    print(readInData(5, False)[0])

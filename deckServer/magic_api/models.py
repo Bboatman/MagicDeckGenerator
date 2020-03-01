@@ -40,7 +40,7 @@ class Card(models.Model):
         ordering = ('id',)
 
     def __str__(self):
-        return self.name + " - " + self.multiverse_id + ": " + self.card_type
+        return self.name + " - " + str(self.multiverse_id) + ": " + str(self.card_type)
 
 class Card_Vector_Point(models.Model):
     id = models.AutoField(primary_key=True)

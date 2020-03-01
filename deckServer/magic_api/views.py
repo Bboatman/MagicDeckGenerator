@@ -26,8 +26,8 @@ class CardViewSet(viewsets.ModelViewSet):
 @permission_classes((permissions.AllowAny,))
 def card_list(request):
     if request.method == 'GET':
-        cards = Card.objects.all()
-        serializer = CardSerializer(cards, many=True)
+        queryset = Card.objects.all()
+        serializer = CardSerializer(queryset, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':

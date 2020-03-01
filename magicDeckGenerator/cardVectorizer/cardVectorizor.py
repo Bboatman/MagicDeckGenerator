@@ -197,32 +197,50 @@ class Vectorizor:
         return result
     
     def build_clean_array(self, save_to_db):
+        seen = {}
+        seen_arr = []
+
+        headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
+        conn = http.client.HTTPConnection('localhost:8000')
+        conn.request('GET', '/api/cards/', headers=headers)
+
+        response = json.loads(conn.getresponse().read())
+        
+        for card in response:
+            c = Card()
+            c.build_from_server(card)
+            key = c.name
+            seen[key] = None
+
         card_array = self.get_cards_from_json()
+
         print("Cleaning Card Array")
-        seen_array = []
-        cleaned_array = []
         for t in card_array: 
-            key = t.name + t.text
-            if (key not in seen_array):
-                tokens = t.tokenize_text()
-                t.simple_vec = self.multimodel.infer_vector(tokens)
-                t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
-                seen_array.append(key)
-                cleaned_array.append(t)
+            key = t.name
+            
+            tokens = t.tokenize_text()
+            t.simple_vec = self.multimodel.infer_vector(tokens)
+            t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
+            if (key not in seen):
                 if save_to_db:
                     t.save_to_db()
-        return cleaned_array
+            seen[key] = t
+        return [x for x in list(seen.values()) if x != None]
 
 
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
         print("Running Graphing on Data Set")
-        algs = ["PCA", "SpectralEmbeddingRBF", "SpectralEmbeddingNN", "TSNE"]
-        for alg in algs[1:]:
-            gc.collect()
-            self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
-            gc.collect()
-            self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
+        algs = ["TSNE", "SpectralEmbeddingRBF"]
+        for alg in algs:
+            try:
+                gc.collect()
+                self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
+                gc.collect()
+                self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
+                print(alg + " Done")
+            except:
+                print(alg + " Failed")
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -241,29 +259,34 @@ class Card:
     long_vec = []
 
     def __str__(self):
-        return self.name + " - " + str(self.multiverse_id) + ": " + self.card_type + "\n" + \
-            self.rarity + ", " + str(self.cmc) + "\n" + self.color_identity + " " + \
-            self.power + "/" + self.toughness
+        return self.name + " - " + str(self.id) + ": " + str(self.card_type) + "\n" + \
+            str(self.rarity) + ", " + str(self.cmc) + "\n" + str(self.color_identity) + " " + \
+            str(self.power) + "/" + str(self.toughness)
 
-    def __init__(self, json_info):
-        if 'multiverse_ids' in json_info and len(json_info['multiverse_ids']) > 0:
-            self.multiverse_id = json_info['multiverse_ids'][0]
-        self.name = json_info['name'].lower()
-        if 'power' in json_info:
-            self.power = json_info['power']
-        else: 
-            self.power = "~"
-        if 'toughness' in json_info:
-            self.toughness = json_info['toughness']
-        else :
-            self.toughness = "~"
-        if 'oracle_text' in json_info:
-            self.text = json_info['oracle_text']
-        self.card_type = json_info['type_line'].split("—")[0].strip()
-        rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3}
-        self.rarity = rarity[json_info['rarity'].strip().lower()]
-        self.cmc = int(json_info['cmc'])
-        self.generate_color_identity(json_info['color_identity'])
+    def __init__(self, json_info=None):
+        if (json_info != None):
+            if 'multiverse_ids' in json_info and len(json_info['multiverse_ids']) > 0:
+                self.multiverse_id = json_info['multiverse_ids'][0]
+            self.name = json_info['name'].lower()
+            if 'power' in json_info:
+                self.power = json_info['power']
+            else: 
+                self.power = "~"
+            if 'toughness' in json_info:
+                self.toughness = json_info['toughness']
+            else :
+                self.toughness = "~"
+            if 'oracle_text' in json_info:
+                self.text = json_info['oracle_text']
+            self.card_type = json_info['type_line'].split("—")[0].strip()
+            rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3}
+            self.rarity = rarity[json_info['rarity'].strip().lower()]
+            self.cmc = int(json_info['cmc'])
+            self.generate_color_identity(json_info['color_identity'])
+
+    def build_from_server(self, info):
+        self.id = info['id']
+        self.name = info['name']
 
     def get_card_type(self, model):
         tokens = self.card_type.lower().split()
@@ -392,14 +415,12 @@ class Card:
 def runModel(model_dimensionality):
     v = Vectorizor(model_dimensionality)
     v.load_training_sequence()
-    v.graph_cards(False)
+    v.graph_cards(True)
 
-def main():
+if __name__ == "__main__":
     try:
-        runModel(4)
+        runModel(3)
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
     except Exception as e: 
         traceback.print_exc()
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
-
-main()

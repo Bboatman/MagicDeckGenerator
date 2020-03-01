@@ -34,10 +34,10 @@ class GroupSerializer(serializers.HyperlinkedModelSerializer):
         instance.save()
         return instance
 
-class CardSerializer(serializers.HyperlinkedModelSerializer):
+class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
-        fields = ('id', 'multiverse_id', 'name', 'card_type', 'rarity', \
+        fields = ('id', 'multiverse_id', 'name', 'rarity', 'card_type', \
             'toughness', 'power', 'cmc', 'color_identity')
 
     def create(self, validated_data):
