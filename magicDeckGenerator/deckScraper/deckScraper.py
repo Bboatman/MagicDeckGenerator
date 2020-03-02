@@ -190,13 +190,18 @@ class DeckMember:
         return {"deck": deck_id, "card": self.name, "count": self.count, "significance": signficance}
 
     def two_face_card_normalizer(self):
-        self.name.replace(" / ", " // ")
+        self.name = self.name.replace(" / ", " // ")
         cardnames = {
             "brazen borrower": "brazen borrower // petty theft", \
             "fae of wishes": "fae of wishes // granted", \
             "murderous rider": "murderous rider // swift end", \
             "foulmire knight": "foulmire knight // profane insight", \
-            "merfolk secretkeeper" : "merfolk secretkeeper // venture deeper"
+            "merfolk secretkeeper" : "merfolk secretkeeper // venture deeper", \
+            "bonecrusher giant": "bonecrusher giant // stomp", \
+            "lovestruck beast": "lovestruck beast // heart's desire", \
+            "rimrock knight": "rimrock knight // boulder rush", \
+            "embereth shieldbreaker": "embereth shieldbreaker // battle display", \
+            "delver of secrets": "delver of secrets // insectile aberration"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]
