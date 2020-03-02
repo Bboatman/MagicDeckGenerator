@@ -76,6 +76,7 @@ class DeckScraper:
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
                 self.saveToDB(deck_obj)
+                random.shuffle(self.to_scrape)
             
             return
 
@@ -163,6 +164,7 @@ class DeckScraper:
 class DeckMember:
     def __init__(self, name, card_id, count = 1):
         self.name = name.lower()
+        self.two_face_card_normalizer()
         self.multiverse_id = card_id
         self.count = count
 
@@ -186,6 +188,19 @@ class DeckMember:
     def build_for_db(self, deck_id, deck_size):
         signficance = float(self.count) / float(deck_size)
         return {"deck": deck_id, "card": self.name, "count": self.count, "significance": signficance}
+
+    def two_face_card_normalizer(self):
+        if (name.find(" / ")):
+            name.replace(" // ")
+        cardnames = {
+            "brazen borrower": "brazen borrower // petty theft", \
+            "fae of wishes": "fae of wishes // granted", \
+            "murderous rider": "murderous rider // swift end", \
+            "foulmire knight": "foulmire knight // profane insight", \
+            "merfolk secretkeeper" : "merfolk secretkeeper // venture deeper"
+        }
+        if self.name in cardnames:
+            self.name = cardnames[self.name]
 
 class Deck:
     def __init__(self, name, url):
