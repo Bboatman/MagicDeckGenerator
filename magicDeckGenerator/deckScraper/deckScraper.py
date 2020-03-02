@@ -23,7 +23,7 @@ class DeckScraper:
         self.seen = []
 
     def prime(self):
-        pickle.dump( {"seen" : [], "to_scrape": []}, open( "./models/pickledLinks.p", "wb" ) )
+        pickle.dump( {"to_scrape": []}, open( "./models/pickledLinks.p", "wb" ) )
 
     def build(self):
         for u in self.start_urls:
@@ -149,7 +149,7 @@ class DeckScraper:
             )
             if len(self.to_scrape) % 100 == 0:
                 print(len(self.to_scrape), new_url)
-                pickle.dump( {"seen" : self.seen, "to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
+                pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
     
     def get_id_for_card(self, card_name):
         card_name = card_name.lower()
@@ -190,8 +190,7 @@ class DeckMember:
         return {"deck": deck_id, "card": self.name, "count": self.count, "significance": signficance}
 
     def two_face_card_normalizer(self):
-        if (name.find(" / ")):
-            name.replace(" // ")
+        self.name.replace(" / ", " // ")
         cardnames = {
             "brazen borrower": "brazen borrower // petty theft", \
             "fae of wishes": "fae of wishes // granted", \

@@ -7,12 +7,11 @@ import numpy as np
 import http.client
 import json
 
-#dS.prime()
-#dS.build()
-
 
 def scrape_sites():
     dS = DeckScraper()
+    #dS.prime()
+    #dS.build()
     try:
         headers = {'Content-type': 'application/json'}
         conn = http.client.HTTPConnection('localhost:8000')
@@ -26,7 +25,7 @@ def scrape_sites():
         dS.seen = seen
         random.shuffle(poss_links)
 
-        #dS.to_scrape = [] #Uncomment to clean scraping array
+        dS.to_scrape = [] #Uncomment to clean scraping array
         if len(poss_links) > 0:
             random.shuffle(poss_links)
             dS.to_scrape = poss_links
@@ -34,7 +33,7 @@ def scrape_sites():
         else:
             print("Building new scrape model")
             dS.build()
-        while(len(dS.seen) < len(obj['seen']) + 100):
+        while(len(dS.seen) < len(seen) + 100):
             dS.generate_card_pool()
 
     except:
