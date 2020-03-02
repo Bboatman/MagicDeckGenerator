@@ -94,7 +94,28 @@ Built with {10} cups of coffee
 
 
 ## Implementation Ideas
-Optimize an existing deck
-Build a deck from exisiting card set
-Build a deck around certain cards
-Build a deck using specific colors
+#### Algorithmic ideas to play with
+ - Similarity measure
+ - Sparsification of graph
+ - Closeness Centrality
+ - Harmonic Centrality
+
+#### Optimize an existing deck
+ - Graph similarity measure of cards using existing set of cards and all edges contained in that set
+ - Find top 3 swaps for each card if above certain score
+   - Weight by cosine similarity and graph similarity to find top matches
+
+#### Build a deck from exisiting card set
+ - Limit all edges to exisiting card set
+ - Add unlimited (60 in case of standard deck type) of each land to card pool
+
+#### Build a deck around certain cards
+ - Limit edges to those where one node is in card set
+
+#### Build a deck using specific colors
+ - limit nodes to those with specific color identities
+
+#### Build a deck on a budget
+ - Play around with positive vs negative weighting using cost vs closeness centrality weighting
+  - (cost / budget) - (budget / 60) - (edge occurence / highest possible occurance)
+  - take percent of budget weight, subtract per card budget allocation, subtract edge weight normalized to 1

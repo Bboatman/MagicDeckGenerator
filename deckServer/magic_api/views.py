@@ -77,6 +77,29 @@ def card_detail(request, pk):
         card.delete()
         return Response(status=status.HTTP_204_NO_CONTENT) 
 
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes((permissions.AllowAny,))
+def card_by_name(request, name):
+    try:
+        card = Card.objects.get(name=name)
+    except Card.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CardSerializer(card)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = CardSerializer(card, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        card.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT) 
+
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()
     serializer_class = DeckSerializer
@@ -132,30 +155,46 @@ def deck_detail_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = DeckDetailSerializer(data=request.data)
+        serializer = DeckDetailSerializer(data=request.data, many=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
 @permission_classes((permissions.AllowAny,))
-def deck_detail_info(request, pk):
-    try:
-        deck_detail = Deck_Detail.objects.get(pk=pk)
-    except Deck_Detail.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
+def deck_detail_info(request, name=None):
     if request.method == 'GET':
-        serializer = DeckDetailSerializer(deck_detail)
-        return Response(serializer.data)
+        try:
+            deck_detail = Deck_Detail.objects.get(card=name)
+            serializer = DeckDetailSerializer(deck_detail)
+            return Response(serializer.data)
+        except Deck_Detail.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
-    elif request.method == 'PUT':
-        serializer = DeckDetailSerializer(deck_detail, data=request.data)
+    elif request.method == 'POST':
+        serializer = DeckDetailSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PUT':
+        req_name = request.data['card']
+        try:
+            deck_detail = Deck_Detail.objects.filter(card=req_name)[:1].get()
+            serializer = DeckDetailSerializer(deck_detail, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except:
+            serializer = DeckDetailSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         deck_detail.delete()

@@ -59,8 +59,15 @@ class Card_Vector_Point(models.Model):
 
 class Deck_Detail(models.Model):
     id = models.AutoField(primary_key=True)
-    deck = models.ForeignKey(Deck, on_delete=models.CASCADE)
-    card = models.ForeignKey(Card, on_delete=models.CASCADE)
+    deck = models.ForeignKey(
+        Deck,
+        on_delete=models.CASCADE
+    )
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.CASCADE,
+        to_field="name"
+    )
     count = models.BigIntegerField(default=0)
     significance = models.FloatField(default=0)
 

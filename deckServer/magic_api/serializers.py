@@ -3,7 +3,7 @@ from .models import Card, Deck, Deck_Detail, Card_Vector_Point
 from rest_framework import serializers
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('url', 'username', 'email', 'groups')
@@ -20,7 +20,7 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
         return instance
 
 
-class GroupSerializer(serializers.HyperlinkedModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ('url', 'name')
@@ -55,7 +55,7 @@ class CardSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class DeckSerializer(serializers.HyperlinkedModelSerializer):
+class DeckSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deck
         fields = ('id', 'deck_size', 'unique_count', 'name', 'url')
@@ -71,7 +71,7 @@ class DeckSerializer(serializers.HyperlinkedModelSerializer):
         instance.save()
         return instance
 
-class DeckDetailSerializer(serializers.HyperlinkedModelSerializer):
+class DeckDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deck_Detail
         fields = ('card', 'deck', 'count', 'significance')
@@ -87,7 +87,7 @@ class DeckDetailSerializer(serializers.HyperlinkedModelSerializer):
         instance.save()
         return instance
 
-class CardVectorPointSerializer(serializers.HyperlinkedModelSerializer):
+class CardVectorPointSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card_Vector_Point
         fields = ('card', 'x_value', 'y_value', 'algorithm', 'alg_weight')
