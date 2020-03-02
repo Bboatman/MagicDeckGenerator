@@ -231,7 +231,7 @@ class Vectorizor:
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
         print("Running Graphing on Data Set")
-        algs = ["TSNE", "SpectralEmbeddingRBF"]
+        algs = ["PCA", "TSNE", "SpectralEmbeddingRBF"]
         for alg in algs:
             try:
                 gc.collect()

@@ -42,3 +42,4 @@ class Scraper:
         make it do anything.
         """
         print(e)
+

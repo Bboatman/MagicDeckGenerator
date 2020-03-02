@@ -1,4 +1,4 @@
-from scraper import Scraper
+from .scraper import Scraper
 from bs4 import BeautifulSoup
 from importlib import import_module
 import http.client
@@ -17,11 +17,10 @@ urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
 
 class DeckScraper:
-    def __init__(self, vectorizor):
+    def __init__(self):
         self.start_urls = urls
         self.to_scrape = []
         self.seen = []
-        self.vectorizor = vectorizor
 
     def prime(self):
         pickle.dump( {"seen" : [], "to_scrape": []}, open( "./models/pickledLinks.p", "wb" ) )
@@ -63,6 +62,7 @@ class DeckScraper:
         else:
             self.seen.append(url)
             raw_html = Scraper(url).simple_get()
+            print("Got: " + url)
             deck = []
             if raw_html:
                 html = BeautifulSoup(raw_html, 'html.parser')
@@ -71,24 +71,26 @@ class DeckScraper:
                 if popped['parent'] == 'https://www.mtgtop8.com/':
                     deck = self.processMtgTop8(html)
 
-            #print(len(deck))
-            #if len(deck) < 50 and len(deck) > 0:
-                #self.saveToDB(url, deck)
-            if len(self.to_scrape) > 0:
-                return
+            if len(deck) < 100 and len(deck) > 0:
+                deck_obj = Deck(url, url)
+                for member in deck:
+                    deck_obj.add_member_to_deck(member)
+                self.saveToDB(deck_obj)
+            
+            return
 
     def processMtgTop8(self, html):
-        c = html.find_all("td", attrs={"class": "G14"})
+        members = html.find_all("td", attrs={"class": "G14"})
         deck = []
-        if not c and len(self.to_scrape) > 0:
+        if not members:
             return []
         else:
-            for entry in c:
-                count = entry.find("div").contents[0].strip()
-                name = entry.find("span").contents[0]
+            for item in members:
+                count = item.find("div").contents[0].strip()
+                name = item.find("span").contents[0]
                 card_id = self.get_id_for_card(name)
                 deck.append(DeckMember(name, card_id, count))
-
+        print("Added MtgTop8 Cards")
         similar_decks = html.select("div.S14 a")
         for nlink in similar_decks:
             if nlink['href'].find('event?e=') >= 0:
@@ -102,7 +104,7 @@ class DeckScraper:
     def processTappedOut(self, html):
         members = html.select('li.member a.qty.board')
         deck = []
-        if not members and len(self.to_scrape) > 0:
+        if not members:
             return []
         else :
             for item in members:
@@ -111,6 +113,7 @@ class DeckScraper:
                 count = item["data-qty"]
                 deck.append(DeckMember(name, card_id, count))
 
+        print("Added TappedOut Cards")
         similar_decks = html.select("a.name")
         for link in similar_decks:
             if link['href'].find("/mtg-decks/") >= 0:
@@ -121,16 +124,21 @@ class DeckScraper:
         return deck
         
 
-    def saveToDB(self, name, deck):
+    def saveToDB(self, deck):
+        body = deck.build_for_db()
+        
         headers = {'Content-type': 'application/json'}
-        name = re.sub(r"[']", "", name)
-        body = {"name" : name, "deckArray" : list(map(lambda x: x.asDict(), deck))}
-
-        conn = http.client.HTTPConnection('magic-deck-generator.herokuapp.com')
-        #conn.request('POST', '/deck', json.dumps(body), headers)
-        #response = conn.getresponse()
-        print(name)
-        #print(response.read().decode())
+        conn = http.client.HTTPConnection('localhost:8000')
+        conn.request('POST', '/api/deck/', json.dumps(body), headers)
+        resp = conn.getresponse().read()
+        response = json.loads(resp)
+        deck_id =response['id']
+        deck_size = body["deck_size"]
+        for member in deck.deckMembers:
+            ret = member.build_for_db(deck_id, deck_size)
+            req = http.client.HTTPConnection('localhost:8000')
+            req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
+            print(ret)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
@@ -140,21 +148,21 @@ class DeckScraper:
             )
             if len(self.to_scrape) % 100 == 0:
                 print(len(self.to_scrape), new_url)
+                pickle.dump( {"seen" : self.seen, "to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
     
     def get_id_for_card(self, card_name):
+        card_name = card_name.lower()
         poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
         if poss:
             if poss[0] is None :
-                print(card_name + " has null id")
-            #if poss[0].text:
-            #    self.vectorizor.tokenize_text(poss[0].text)
-            return poss[0].multiverse_id if poss[0].multiverse_id is not None else 0
+                print(card_name + " not in db")
+            return poss[0].id if poss[0].id is not None else 0
         else: 
             return 0
 
 class DeckMember:
     def __init__(self, name, card_id, count = 1):
-        self.name = name
+        self.name = name.lower()
         self.multiverse_id = card_id
         self.count = count
 
@@ -174,6 +182,31 @@ class DeckMember:
     def decrease(self, number = 1):
         self.count -= number
 
-ds = DeckScraper([])
-ds.prime()
-ds.build()
+
+    def build_for_db(self, deck_id, deck_size):
+        signficance = float(self.count) / float(deck_size)
+        return {"deck": deck_id, "card": self.name, "count": self.count, "significance": signficance}
+
+class Deck:
+    def __init__(self, name, url):
+        self.name = name.lower()
+        self.url = url
+        self.deckMembers = []
+
+    def __str__(self):
+        return self.url
+
+    def add_member_to_deck(self, member):
+        self.deckMembers.append(member)
+
+    def build_for_db(self):
+        deck_size = 0
+        unique_count = len(self.deckMembers)
+        for member in self.deckMembers:
+            deck_size += int(member.count)
+        return {"deck_size": deck_size, "unique_count": unique_count, "name": self.name, "url": self.url}
+
+if __name__ == "__main__":
+    dS = DeckScraper([])
+    dS.prime()
+    dS.build()
