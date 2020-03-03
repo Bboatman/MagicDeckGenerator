@@ -25,10 +25,11 @@ def scrape_sites():
         dS.seen = seen
         random.shuffle(poss_links)
 
-        dS.to_scrape = [] #Uncomment to clean scraping array
         if len(poss_links) > 0:
             random.shuffle(poss_links)
             dS.to_scrape = poss_links
+            #dS.to_scrape = [] #Uncomment to clean scraping array
+            #dS.build() #Uncomment to clean scraping array
             print("Ingesting ", len(dS.to_scrape), " links")
         else:
             print("Building new scrape model")

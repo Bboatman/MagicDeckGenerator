@@ -12,8 +12,15 @@ import pickle
 urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=LE"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
 
 class DeckScraper:
@@ -201,7 +208,10 @@ class DeckMember:
             "lovestruck beast": "lovestruck beast // heart's desire", \
             "rimrock knight": "rimrock knight // boulder rush", \
             "embereth shieldbreaker": "embereth shieldbreaker // battle display", \
-            "delver of secrets": "delver of secrets // insectile aberration"
+            "delver of secrets": "delver of secrets // insectile aberration", \
+            "giant killer": "giant killer // chop down", \
+            "realm-cloaked giant": "realm-cloaked giant // cast off", \
+            "search for azcanta": "search for azcanta // azcanta, the sunken ruin"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]
