@@ -20,9 +20,17 @@ def scrape_sites():
         response = json.loads(resp)
         seen = [x["url"] for x in response]
 
-        obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
-        poss_links = obj["to_scrape"]
+        #obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
+        #poss_links = obj["to_scrape"]
         dS.seen = seen
+        poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/20-02-20-aikido/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-decks/the-queens-accursed-control/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-decks/edgewall-adventures/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-decks/raff-can-drive/"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "event?e=18637&d=316129&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "event?e=24177&d=368756&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "event?e=24815&d=373633&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "event?e=22145&d=349853&f=MO"}]
         random.shuffle(poss_links)
 
         if len(poss_links) > 0:

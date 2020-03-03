@@ -92,6 +92,8 @@ Okay, now what? So we turned some magic cards into numbers, and that was cool, b
 
 Built with {10} cups of coffee
 
+## Big ToDos
+- Audit existing decks in db to verify that expected card count matches card-detail information for improve save check
 
 ## Implementation Ideas
 #### Algorithmic ideas to play with

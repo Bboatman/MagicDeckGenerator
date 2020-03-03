@@ -35,18 +35,21 @@ class DeckScraper:
     def build(self):
         for u in self.start_urls:
             url = u['parent'] + u['url']
-            raw_html = Scraper(url).simple_get()
-            html = BeautifulSoup(raw_html, 'html.parser')
-            if u['parent'].find('tappedout') >= 0:
-                for link in html.select('a'):
-                    if link['href'].find("/mtg-decks/") >= 0:
-                        self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
-                    elif link['href'].find("mtg-decks/") >= 0:
-                        self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
-            elif u['parent'].find('mtgtop8') >= 0:
-                for link in html.select('a'):
-                    if link['href'].find('archetype') >= 0:
-                        self.getMtgTop8Links(link)
+            try:
+                raw_html = Scraper(url).simple_get()
+                html = BeautifulSoup(raw_html, 'html.parser')
+                if u['parent'].find('tappedout') >= 0:
+                    for link in html.select('a'):
+                        if link['href'].find("/mtg-decks/") >= 0:
+                            self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+                        elif link['href'].find("mtg-decks/") >= 0:
+                            self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+                elif u['parent'].find('mtgtop8') >= 0:
+                    for link in html.select('a'):
+                        if link['href'].find('archetype') >= 0:
+                            self.getMtgTop8Links(link)
+            except:
+                print("Unavailable url: " + url)
         random.shuffle(self.to_scrape)
         print("Done building")
 
@@ -65,6 +68,7 @@ class DeckScraper:
         url = popped["parent"] + popped['url']
 
         if url in self.seen:
+            print("seen: " + url)
             return
         else:
             self.seen.append(url)
@@ -73,12 +77,13 @@ class DeckScraper:
             deck = []
             if raw_html:
                 html = BeautifulSoup(raw_html, 'html.parser')
-                if popped['parent'] == 'http://tappedout.net':
-                    deck = self.processTappedOut(html)
                 if popped['parent'] == 'https://www.mtgtop8.com/':
                     deck = self.processMtgTop8(html)
+                else:
+                    deck = self.processTappedOut(html)
 
-            if len(deck) < 100 and len(deck) > 0:
+            if len(deck) > 0:
+                print("saving: " + url)
                 deck_obj = Deck(url, url)
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
@@ -198,6 +203,10 @@ class DeckMember:
 
     def two_face_card_normalizer(self):
         self.name = self.name.replace(" / ", " // ")
+        if ("knight of the kitchen sink" in self.name):
+            self.name = "knight of the kitchen sink"
+        
+        #Last verified: conqueror's galleon
         cardnames = {
             "brazen borrower": "brazen borrower // petty theft", \
             "fae of wishes": "fae of wishes // granted", \
@@ -211,7 +220,56 @@ class DeckMember:
             "delver of secrets": "delver of secrets // insectile aberration", \
             "giant killer": "giant killer // chop down", \
             "realm-cloaked giant": "realm-cloaked giant // cast off", \
-            "search for azcanta": "search for azcanta // azcanta, the sunken ruin"
+            "search for azcanta": "search for azcanta // azcanta, the sunken ruin", \
+            "nissa, vastwood seer": "nissa, vastwood seer // nissa, sage animist", \
+            "westvale abbey": "westvale abbey // ormendahl, profane prince", \
+            "arguel's blood fast": "arguel's blood fast // temple of aclazotz", \
+            "legion's landing": "legion's landing // adanto, the first fort", \
+            "chalice of life": "chalice of life // chalice of death", \
+            "thaumatic compass": "thaumatic compass // spires of orazca", \
+            "elbrus, the binding blade": "elbrus, the binding blade // withengar unbound", \
+            "jace, vryn's prodigy": "jace, vryn's prodigy // jace, telepath unbound", \
+            "thing in the ice": "thing in the ice // awoken horror", \
+            "journey to eternity": "journey to eternity // atzal, cave of eternity", \
+            "order of midnight": "order of midnight // alter fate", \
+            "smitten swordmaster": "smitten swordmaster // curry favor", \
+            "beanstalk giant": "beanstalk giant // fertile footsteps", \
+            "path of mettle": "path of mettle // metzali, tower of triumph", \
+            "conqueror's galleon": "conqueror's galleon // conqueror's foothold", \
+            "breaking": "breaking // entering", \
+            "nezumi graverobber": "nezumi graverobber // nighteyes the desecrator", \
+            "archangel avacyn": "archangel avacyn // avacyn, the purifier", \
+            "kytheon, hero of akros": "kytheon, hero of akros // gideon, battle-forged", \
+            "storm the vault": "storm the vault // vault of catlacan", \
+            "treasure map": "treasure map // treasure cove", \
+            "faerie guidemother": "faerie guidemother // gift of the fae", \
+            "ardenvale tactician": "ardenvale tactician // dizzying swoop", \
+            "flaxen intruder": "flaxen intruder // welcome home", \
+            "tuinvale treefolk": "tuinvale treefolk // oaken boon", \
+            "rosethorn acolyte": "rosethorn acolyte // seasonal ritual", \
+            "shepherd of the flock": "shepherd of the flock // usher to safety", \
+            "silverflame squire": "silverflame squire // on alert", \
+            "queen of ice": "queen of ice // rage of winter", \
+            "curious pair": "curious pair // treats to share", \
+            "garenbrig carver": "garenbrig carver // shield's might", \
+            "oakhame ranger": "oakhame ranger // bring back", \
+            "hypnotic sprite": "hypnotic sprite // mesmeric glare", \
+            "animating faerie": "animating faerie // bring to life", \
+            "merchant of the vale": "merchant of the vale // haggle", \
+            "lonesome unicorn": "lonesome unicorn // rider in need", \
+            "liliana, heretical healer": "liliana, heretical healer // liliana, defiant necromancer", \
+            "kessig prowler": "kessig prowler // sinuous predator", \
+            "duskwatch recruiter": "duskwatch recruiter // krallenhorde howler",\
+            "voldaren pariah": "voldaren pariah // abolisher of bloodlines",\
+            "growing rites of itlimoc": "growing rites of itlimoc // itlimoc, cradle of the sun",\
+            "rune-tail, kitsune ascendant": "rune-tail, kitsune ascendant // rune-tail's essence",\
+            "lone rider": "lone rider // it that rides as one",\
+            "azor's gateway": "azor's gateway // sanctum of the sun", \
+            "primal amulet": "primal amulet // primal wellspring", \
+            "give": "give // take", \
+            "lim-dul's vault": "lim-dûl's vault", \
+            "huntmaster of the fells": "huntmaster of the fells // ravager of the fells", \
+            "farm": "farm // market"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]
