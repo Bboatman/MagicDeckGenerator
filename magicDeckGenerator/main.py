@@ -6,9 +6,15 @@ from gensim.utils import simple_preprocess
 import numpy as np
 import http.client
 import json
-
+import logging
+import threading
 
 def scrape_sites():
+    log_src = "MAIN"
+    format = "%(asctime)s: %(message)s"
+    logging.basicConfig(format=format, level=logging.INFO,
+                        datefmt="%H:%M:%S")
+
     dS = DeckScraper()
     #dS.prime()
     #dS.build()
@@ -20,18 +26,18 @@ def scrape_sites():
         response = json.loads(resp)
         seen = [x["url"] for x in response]
 
-        obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
-        poss_links = obj["to_scrape"]
+        #obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
+        #poss_links = obj["to_scrape"]
         dS.seen = seen
         
-        #poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/escape-from-hellview/"}, \
-        #    {"parent": 'http://tappedout.net/', "url": "mtg-decks/12-03-20-scorpion-god/"}, \
-        #    {"parent": 'http://tappedout.net/', "url": "mtg-decks/29-01-19-the-haunt-of-hightower/"}, \
-        #    {"parent": 'http://tappedout.net/', "url": "mtg-decks/bleeding-of-the-horns/"}, \
-        #    {"parent": 'https://www.mtgtop8.com/', "url": "event?e=10431&d=259700&f=LI"}, \
-        #    {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9209&d=252789&f=LI"}, \
-        #    {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9204&d=252747&f=LI"}, \
-        #    {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9208&d=252778&f=LI"}]
+        poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/in-edgeways/"}, \
+            {"parent": 'http://tappedout.net/', "url": "mtg-decks/06-04-18-meme-deck/"}, \
+            {"parent": 'http://tappedout.net/', "url": "mtg-decks/wugy-hug-n-hate/"}, \
+            {"parent": 'http://tappedout.net/', "url": "mtg-decks/delirius-manifestation/"}, \
+            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=502&d=206461&f=LI"}, \
+            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=17041&d=305431&f=EDHM"}, \
+            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=26186&d=398844&f=ST"}, \
+            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9191&d=252647&f=LI"}]
 
         random.shuffle(poss_links)
 
@@ -40,17 +46,36 @@ def scrape_sites():
             dS.to_scrape = poss_links
             #dS.to_scrape = [] #Uncomment to clean scraping array
             #dS.build() #Uncomment to clean scraping array
-            print("Ingesting ", len(dS.to_scrape), " links")
+            logging.info("%s : Ingesting %d links", log_src, len(dS.to_scrape))
         else:
-            print("Building new scrape model")
+            logging.info("%s : Building new scrape model", log_src)
             dS.build()
+
         while(len(dS.seen) < len(seen) + 100):
-            dS.generate_card_pool()
+            threads = list()
+            logging.info("%s : Seen %d links", log_src, len(dS.seen))
+            for index in range(3):
+                logging.info("%s : create and start thread %d.", log_src, index)
+                x = threading.Thread(target=thread_function, args=(index,dS,))
+                threads.append(x)
+                x.start()
+
+            for index, thread in enumerate(threads):
+                logging.info("%s : before joining thread %d.", log_src, index)
+                thread.join()
+                logging.info("%s : thread %d done", log_src, index)
 
     except:
         obj = {"to_scrape": dS.to_scrape}
         pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
         raise
+
+
+def thread_function(name, dS):
+    log_src = "THREAD"
+    logging.info("%s %s : starting", log_src, name)
+    dS.generate_card_pool()
+    logging.info("%s %s: finishing", log_src, name)
 
     
 scrape_sites()
