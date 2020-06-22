@@ -121,3 +121,8 @@ Built with {10} cups of coffee
  - Play around with positive vs negative weighting using cost vs closeness centrality weighting
   - (cost / budget) - (budget / 60) - (edge occurence / highest possible occurance)
   - take percent of budget weight, subtract per card budget allocation, subtract edge weight normalized to 1
+
+#### Automated drafting
+ - From an existing tapped out cube as a whole set
+ - Alternate taking turns from whole set
+ - From limited card hands available as generator for players unfamiliar with drafting
