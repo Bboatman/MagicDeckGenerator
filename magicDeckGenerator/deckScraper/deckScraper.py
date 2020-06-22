@@ -8,13 +8,9 @@ from mtgsdk import Card
 import random
 import time
 import pickle
-import logging
+from ..log import Log
 
-
-log_src = "DECK SCRAPER"
-format = "%(asctime)s: %(message)s"
-logging.basicConfig(format=format, level=logging.INFO,
-                    datefmt="%H:%M:%S")
+log = Log("DECK SCRAPER", 0).log
 
 urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
@@ -29,11 +25,6 @@ urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
         {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
-
-def log(msg):
-    logging.info("%s : %s", log_src, msg)
-
-
 
 class DeckScraper:
     def __init__(self):
@@ -61,9 +52,9 @@ class DeckScraper:
                         if link['href'].find('archetype') >= 0:
                             self.getMtgTop8Links(link)
             except:
-                log("Unavailable url: " + url)
+                log(2, "Unavailable url: " + url)
         random.shuffle(self.to_scrape)
-        log("Done building")
+        log(0, "Done building")
 
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
@@ -80,12 +71,12 @@ class DeckScraper:
         url = popped["parent"] + popped['url']
 
         if url in self.seen:
-            log("seen: " + url)
+            log(0, "seen: " + url)
             return
         else:
             self.seen.append(url)
             raw_html = Scraper(url).simple_get()
-            log("Got: " + url)
+            log(0, "Got: " + url)
             deck = []
             if raw_html:
                 html = BeautifulSoup(raw_html, 'html.parser')
@@ -95,7 +86,7 @@ class DeckScraper:
                     deck = self.processTappedOut(html)
 
             if len(deck) > 0:
-                log("saving: " + url)
+                log(0, "saving: " + url)
                 deck_obj = Deck(url, url)
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
@@ -115,7 +106,7 @@ class DeckScraper:
                 name = item.find("span").contents[0]
                 card_id = self.get_id_for_card(name)
                 deck.append(DeckMember(name, card_id, count))
-        log("Added MtgTop8 Cards")
+        log(0, "Added MtgTop8 Cards")
         similar_decks = html.select("div.S14 a")
         for nlink in similar_decks:
             if nlink['href'].find('event?e=') >= 0 and nlink['href'] not in self.seen:
@@ -138,7 +129,7 @@ class DeckScraper:
                 count = item["data-qty"]
                 deck.append(DeckMember(name, card_id, count))
 
-        log("Added TappedOut Cards")
+        log(0, "Added TappedOut Cards")
         similar_decks = html.select("a.name")
         for link in similar_decks:
             if link['href'].find("/mtg-decks/") >= 0 and link['href'] not in self.seen:
@@ -163,7 +154,7 @@ class DeckScraper:
             ret = member.build_for_db(deck_id, deck_size)
             req = http.client.HTTPConnection('localhost:8000')
             req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
-            log(ret)
+            log(0, ret)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
@@ -172,7 +163,7 @@ class DeckScraper:
                 {'url': link, 'parent': parent_domain}
             )
             if len(self.to_scrape) % 100 == 0:
-                log("To Scrape: %d, adding %s", len(self.to_scrape), new_url)
+                log(0, "To Scrape: %d, adding %s", len(self.to_scrape), new_url)
                 pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
     
     def get_id_for_card(self, card_name):
@@ -180,7 +171,7 @@ class DeckScraper:
         poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
         if poss:
             if poss[0] is None :
-                log(card_name + " not in db")
+                log(0, card_name + " not in db")
             return poss[0].id if poss[0].id is not None else 0
         else: 
             return 0

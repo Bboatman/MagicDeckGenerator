@@ -8,10 +8,13 @@ from sklearn.decomposition import PCA
 from sklearn import preprocessing
 from matplotlib import pyplot
 from playsound import playsound
+from .log import Log
+
+log = Log("CARD VECTORIZOR", 0).log
 
 class Vectorizor:
     def __init__(self, model_dimensionality = 5):
-        print("Initializing")
+        log(0, "Initializing")
         import os
         dirname = os.path.dirname(__file__)
         self.model_dimensionality = model_dimensionality
@@ -31,7 +34,7 @@ class Vectorizor:
             self.get_cards_from_json()
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
-            print("Cleaning Training Model")
+            log(0, "Cleaning Training Model")
             self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
             self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
             self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
@@ -41,7 +44,7 @@ class Vectorizor:
                 self.multimodel = Doc2Vec.load(self.model_dimensionality_path) 
                 self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
-                print("Failed to load")
+                log(1, "Failed to load")
                 self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
                 self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
                 self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
@@ -57,12 +60,12 @@ class Vectorizor:
 
     def train_model(self, build = False):
         if build: 
-            print("Building Vocab")
+            log(0, "Building Vocab")
             self.model.build_vocab(self.train_seq)
             self.twodmodel.build_vocab(self.train_seq)
             self.multimodel.build_vocab(self.train_seq)
         
-        print("Training Model")
+        log(0, "Training Model")
         self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
             epochs=self.model.epochs)
         self.multimodel.train(self.train_seq, total_examples=self.model.corpus_count, \
@@ -82,7 +85,7 @@ class Vectorizor:
 
     def get_cards_from_json(self, update_training_model= False, \
         write_to_db = False, progress_print = False):
-        print("Getting cards from JSON")
+        log(0, "Getting cards from JSON")
         t = time.time()
         json_file = open(self.card_json_path)
         data = json.load(json_file)
@@ -108,13 +111,12 @@ class Vectorizor:
             obj += c.tokenize_text()
             if len(obj)%2000 == 0:
                 if (progress_print):
-                    print(str(count) + " Processed")
-                    print(obj[-10:])
+                    log(0, str(count) + " Processed")
                 if (update_training_model):
                     pickle.dump(obj, open( self.training_model_path, "wb" ) )
         
         t = time.time() - t
-        print("Got " + str(len(card_array)) + " cards in " + str(t))
+        log(0, "Got %d cards in %s time", len(card_array), str(t))
         return card_array
 
     def decompose_data(self, algorithm, n_components, cards, naive, save_to_db):
@@ -137,7 +139,7 @@ class Vectorizor:
         else:
             first_pass = np.array([c.simple_vec for c in cards])
         
-        print("First Pass Complete")
+        log(0, "First Pass Complete")
         card_values = []
         mean = np.mean(first_pass)
         std = np.std(first_pass)
@@ -165,12 +167,12 @@ class Vectorizor:
         try:
             result = alg.fit_transform(first_pass)
         except:
-            print("Failed second pass, defaulting to PCA")
+            log(1, "Failed second pass, defaulting to PCA")
             alg = PCA(n_components=n_components)
             result = alg.fit_transform(first_pass)
 
         t = time.time() - t
-        print(algorithm + " " + str(n_components) + "d Complete in " + str(t))
+        log(0, "Running %s on %d dimensions, completed in %s time", algorithm, n_components, str(t))
         ret = []
 
         if naive:
@@ -193,7 +195,7 @@ class Vectorizor:
         else:
             fieldnames += [str(x) for x in range(n_components)]
 
-        print("Data Saved")
+        log(0, "Data Saved")
         return result
     
     def build_clean_array(self, save_to_db):
@@ -214,7 +216,7 @@ class Vectorizor:
 
         card_array = self.get_cards_from_json()
 
-        print("Cleaning Card Array")
+        log(0, "Cleaning Card Array")
         for t in card_array: 
             key = t.name
             
@@ -230,7 +232,7 @@ class Vectorizor:
 
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
-        print("Running Graphing on Data Set")
+        log(0, "Running Graphing on Data Set")
         algs = ["PCA", "TSNE", "SpectralEmbeddingRBF"]
         for alg in algs:
             try:
@@ -238,9 +240,9 @@ class Vectorizor:
                 self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
                 gc.collect()
                 self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
-                print(alg + " Done")
+                log(0, "%s Done", alg)
             except:
-                print(alg + " Failed")
+                log(2, "%s Failed", alg)
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -412,14 +414,14 @@ class Card:
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('PUT', '/api/card_vector/', body, headers)
 
-def runModel(model_dimensionality):
+def runModel(model_dimensionality, new_data_set=False):
     v = Vectorizor(model_dimensionality)
-    v.load_training_sequence()
+    v.load_training_sequence(new_data_set)
     v.graph_cards(True)
 
 if __name__ == "__main__":
     try:
-        runModel(3)
+        runModel(3, True)
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
     except Exception as e: 
         traceback.print_exc()
