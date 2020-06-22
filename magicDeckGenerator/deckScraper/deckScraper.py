@@ -40,9 +40,9 @@ class DeckScraper:
                 html = BeautifulSoup(raw_html, 'html.parser')
                 if u['parent'].find('tappedout') >= 0:
                     for link in html.select('a'):
-                        if link['href'].find("/mtg-decks/") >= 0:
+                        if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
                             self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
-                        elif link['href'].find("mtg-decks/") >= 0:
+                        elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
                             self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
                 elif u['parent'].find('mtgtop8') >= 0:
                     for link in html.select('a'):
@@ -106,9 +106,9 @@ class DeckScraper:
         print("Added MtgTop8 Cards")
         similar_decks = html.select("div.S14 a")
         for nlink in similar_decks:
-            if nlink['href'].find('event?e=') >= 0:
+            if nlink['href'].find('event?e=') >= 0 and nlink['href'] not in self.seen:
                 self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
-            elif nlink['href'].find('?e=') >= 0:
+            elif nlink['href'].find('?e=') >= 0 and nlink['href'] not in self.seen:
                 self.add_to_scrape_pool( 'event' + nlink['href'], 'https://www.mtgtop8.com/')
         
         return deck
@@ -129,9 +129,9 @@ class DeckScraper:
         print("Added TappedOut Cards")
         similar_decks = html.select("a.name")
         for link in similar_decks:
-            if link['href'].find("/mtg-decks/") >= 0:
+            if link['href'].find("/mtg-decks/") >= 0 and link['href'] not in self.seen:
                 self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
-            elif link['href'].find("mtg-decks/") >= 0:
+            elif link['href'].find("mtg-decks/") >= 0 and link['href'] not in self.seen:
                 self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
 
         return deck
@@ -206,7 +206,7 @@ class DeckMember:
         if ("knight of the kitchen sink" in self.name):
             self.name = "knight of the kitchen sink"
         
-        #Last verified: conqueror's galleon
+        #Last verified: kytheon, hero of akros
         cardnames = {
             "brazen borrower": "brazen borrower // petty theft", \
             "fae of wishes": "fae of wishes // granted", \
@@ -269,7 +269,46 @@ class DeckMember:
             "give": "give // take", \
             "lim-dul's vault": "lim-dûl's vault", \
             "huntmaster of the fells": "huntmaster of the fells // ravager of the fells", \
-            "farm": "farm // market"
+            "farm": "farm // market", \
+            "commit": "commit // memory", \
+            "rags": "rags // riches", \
+            "seek": "hide // seek", \
+            "profane procession": "profane procession // tomb of the dusk rose", \
+            "dowsing dagger": "dowsing dagger // lost vale", \
+            "accursed witch": "accursed witch // infectious curse", \
+            "golden guardian": "golden guardian // gold-forge garrison", \
+            "reaper of night": "reaper of night // harvest fear", \
+            "life": "life // death", \
+            "cut": "cut // ribbons", \
+            "nezumi shortfang": "nezumi shortfang // stabwhisker the odious", \
+            "reckless waif": "reckless waif // merciless predator", \
+            "extricator of sin": "extricator of sin // extricator of flesh", \
+            "gideon, battle-forged": "kytheon, hero of akros // gideon, battle-forged", \
+            "garruk relentless": "garruk relentless // garruk, the veil-cursed", \
+            "kessig forgemaster": "kessig forgemaster // flameheart werewolf", \
+            "solitary hunter": "solitary hunter // one of the pack", \
+            "ulvenwald captive": "ulvenwald captive // ulvenwald abomination", \
+            "nicol bolas, the ravager": "nicol bolas, the ravager // nicol bolas, the arisen", \
+            "vance's blasting cannons": "vance's blasting cannons // spitfire bastion", \
+            "avacyn, the purifier": "archangel avacyn // avacyn, the purifier", \
+            "autumnal gloom": "autumnal gloom // ancient of the equinox", \
+            "aberrant researcher": "aberrant researcher // perfected form", \
+            "cryptolith fragment": "cryptolith fragment // aurora of emrakul", \
+            "thraben gargoyle": "thraben gargoyle // stonewing antagonizer", \
+            "startled awake": "startled awake // persistent nightmare", \
+            "final judgement": "final judgment", \
+            "shrill howler": "shrill howler // howling chorus", \
+            "ludevic's test subject": "ludevic's test subject // ludevic's abomination", \
+            "heir of falkenrath": "heir of falkenrath // heir to the night", \
+            "jushi apprentice": "jushi apprentice // tomoya the revealer", \
+            "arlinn, embraced by the moon": "arlinn kord // arlinn, embraced by the moon", \
+            "nicol bolas, the arisen": "nicol bolas, the ravager // nicol bolas, the arisen", \
+            "arlinn kord": "arlinn kord // arlinn, embraced by the moon", \
+            "chandra, roaring flame": "chandra, fire of kaladesh // chandra, roaring flame", \
+            "nissa, sage animist": "nissa, vastwood seer // nissa, sage animist", \
+            "liliana, defiant necromancer": "liliana, heretical healer // liliana, defiant necromancer", \
+            "jace, telepath unbound": "jace, vryn's prodigy // jace, telepath unbound", \
+            "garruk, the veil-cursed": "garruk relentless // garruk, the veil-cursed"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]
