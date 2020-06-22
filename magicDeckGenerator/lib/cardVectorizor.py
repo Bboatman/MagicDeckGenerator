@@ -1,4 +1,4 @@
-import json, math, pickle, re, time, copy, random, csv, gc, traceback, os
+import json, math, pickle, re, time, copy, random, csv, gc, os
 import http.client
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
@@ -7,15 +7,14 @@ from sklearn.manifold import TSNE, SpectralEmbedding, MDS
 from sklearn.decomposition import PCA
 from sklearn import preprocessing
 from matplotlib import pyplot
-from playsound import playsound
 from .log import Log
+import os
 
 log = Log("CARD VECTORIZOR", 0).log
 
 class Vectorizor:
     def __init__(self, model_dimensionality = 5):
         log(0, "Initializing")
-        import os
         dirname = os.path.dirname(__file__)
         self.model_dimensionality = model_dimensionality
         self.card_json_path = os.path.join(dirname, '../models/scryfall-default-cards.json')
@@ -111,12 +110,12 @@ class Vectorizor:
             obj += c.tokenize_text()
             if len(obj)%2000 == 0:
                 if (progress_print):
-                    log(0, str(count) + " Processed")
+                    log(0, f"{count} Processed")
                 if (update_training_model):
                     pickle.dump(obj, open( self.training_model_path, "wb" ) )
         
         t = time.time() - t
-        log(0, "Got %d cards in %s time", len(card_array), str(t))
+        log(0, f"Got {len(card_array)} cards in {t} time")
         return card_array
 
     def decompose_data(self, algorithm, n_components, cards, naive, save_to_db):
@@ -172,7 +171,7 @@ class Vectorizor:
             result = alg.fit_transform(first_pass)
 
         t = time.time() - t
-        log(0, "Running %s on %d dimensions, completed in %s time", algorithm, n_components, str(t))
+        log(0, f"Running {algorithm} on {n_components} dimensions, completed in {t} time")
         ret = []
 
         if naive:
@@ -240,9 +239,9 @@ class Vectorizor:
                 self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
                 gc.collect()
                 self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
-                log(0, "%s Done", alg)
+                log(0, f"{alg} Done")
             except:
-                log(2, "%s Failed", alg)
+                log(2, f"{alg} Failed")
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -413,16 +412,3 @@ class Card:
         headers = {'Content-type': 'application/json'}
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('PUT', '/api/card_vector/', body, headers)
-
-def runModel(model_dimensionality, new_data_set=False):
-    v = Vectorizor(model_dimensionality)
-    v.load_training_sequence(new_data_set)
-    v.graph_cards(True)
-
-if __name__ == "__main__":
-    try:
-        runModel(3, True)
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
-    except Exception as e: 
-        traceback.print_exc()
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')

@@ -1,13 +1,15 @@
-import pickle, random, gc, csv, time
-from .deckScraper import DeckScraper
+import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys
+import numpy as np
+
+from lib.deckScraper import DeckScraper
+from lib.cardVectorizor import Vectorizor
+from lib.log import Log
+
 from sklearn.manifold import TSNE, SpectralEmbedding, MDS
 from sklearn.decomposition import PCA
+
 from gensim.utils import simple_preprocess
-import numpy as np
-import http.client
-import json
-import threading
-from .log import Log
+from playsound import playsound
 
 log = Log("MAIN", 0).log
 
@@ -45,14 +47,14 @@ def scrape_sites():
             dS.to_scrape = poss_links
             #dS.to_scrape = [] #Uncomment to clean scraping array
             #dS.build() #Uncomment to clean scraping array
-            log(0, "%s : Ingesting %d links", log_src, len(dS.to_scrape))
+            log(0, f"{log_src}  : Ingesting {len(dS.to_scrape)} links")
         else:
             log(1, "%s : Building new scrape model", log_src)
             dS.build()
 
         while(len(dS.seen) < len(seen) + 100):
             threads = list()
-            log(0, "%s : Seen %d links", log_src, len(dS.seen))
+            log(0, f"{log_src} : Seen {len(dS.seen)} links")
             for index in range(3):
                 x = threading.Thread(target=thread_function, args=(index,dS,))
                 threads.append(x)
@@ -60,18 +62,42 @@ def scrape_sites():
 
             for index, thread in enumerate(threads):
                 thread.join()
-                log(0, "%s : thread %d done", log_src, index)
+                log(0, f"{log_src} : thread {index} done")
 
     except:
         obj = {"to_scrape": dS.to_scrape}
         pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
         raise
 
-
 def thread_function(name, dS):
     log_src = "Thread"
-    log(0, "%s %s : starting", log_src, name)
+    log(0, f"{log_src} {name} : starting")
     dS.generate_card_pool()
 
-    
-scrape_sites()
+def vectorizeCards():
+    log(0, "Vectorizing Cards")
+    model_dimensionality = 3
+    new_data_set = False
+    try:
+        v = Vectorizor(model_dimensionality)
+        v.load_training_sequence(new_data_set)
+        v.graph_cards(True)
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
+    except Exception as e: 
+        traceback.print_exc()
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
+
+
+if __name__ == "__main__":
+    #log(0, f"{len(sys.argv)} arguments found")
+    command = sys.argv[1]
+    if  (command == "scrape"):
+        scrape_sites()
+    elif (command == "vectorize"):
+        vectorizeCards()
+    elif (command == "help"):
+        print("scrape: Scrape mtgTop8 and tappedOut for deck data")
+        print("vectorize: Process Scryfall data and save it to the database")
+        print("help: display all command options")
+    else: 
+        print(f"'{command}' is not a valid command, try using 'help' to see all command options")

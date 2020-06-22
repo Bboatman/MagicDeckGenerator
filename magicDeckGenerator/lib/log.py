@@ -1,4 +1,5 @@
 import logging
+
 class Log:
 # Initializer / Instance Attributes
     def __init__(self, src, log_level):

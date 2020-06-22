@@ -1,4 +1,5 @@
 from .scraper import Scraper
+from .log import Log
 from bs4 import BeautifulSoup
 from importlib import import_module
 import http.client
@@ -8,9 +9,8 @@ from mtgsdk import Card
 import random
 import time
 import pickle
-from ..log import Log
 
-log = Log("DECK SCRAPER", 0).log
+log = Log("DECK SCRAPER", 1).log
 
 urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
@@ -52,7 +52,7 @@ class DeckScraper:
                         if link['href'].find('archetype') >= 0:
                             self.getMtgTop8Links(link)
             except:
-                log(2, "Unavailable url: " + url)
+                log(2, f"Unavailable url: {url}")
         random.shuffle(self.to_scrape)
         log(0, "Done building")
 
@@ -71,12 +71,12 @@ class DeckScraper:
         url = popped["parent"] + popped['url']
 
         if url in self.seen:
-            log(0, "seen: " + url)
+            log(0, f"Seen: {url}")
             return
         else:
             self.seen.append(url)
             raw_html = Scraper(url).simple_get()
-            log(0, "Got: " + url)
+            log(0, f"Got: {url}")
             deck = []
             if raw_html:
                 html = BeautifulSoup(raw_html, 'html.parser')
@@ -86,7 +86,7 @@ class DeckScraper:
                     deck = self.processTappedOut(html)
 
             if len(deck) > 0:
-                log(0, "saving: " + url)
+                log(0, f"Saving: {url}")
                 deck_obj = Deck(url, url)
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
@@ -163,7 +163,7 @@ class DeckScraper:
                 {'url': link, 'parent': parent_domain}
             )
             if len(self.to_scrape) % 100 == 0:
-                log(0, "To Scrape: %d, adding %s", len(self.to_scrape), new_url)
+                log(0, f"To Scrape: {len(self.to_scrape)}, adding {new_url}")
                 pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
     
     def get_id_for_card(self, card_name):
@@ -171,7 +171,7 @@ class DeckScraper:
         poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
         if poss:
             if poss[0] is None :
-                log(0, card_name + " not in db")
+                log(0, f"{card_name} not in db")
             return poss[0].id if poss[0].id is not None else 0
         else: 
             return 0
