@@ -54,13 +54,11 @@ def scrape_sites():
             threads = list()
             log(0, "%s : Seen %d links", log_src, len(dS.seen))
             for index in range(3):
-                log(0, "%s : create and start thread %d.", log_src, index)
                 x = threading.Thread(target=thread_function, args=(index,dS,))
                 threads.append(x)
                 x.start()
 
             for index, thread in enumerate(threads):
-                log(0, "%s : before joining thread %d.", log_src, index)
                 thread.join()
                 log(0, "%s : thread %d done", log_src, index)
 
@@ -74,7 +72,6 @@ def thread_function(name, dS):
     log_src = "Thread"
     log(0, "%s %s : starting", log_src, name)
     dS.generate_card_pool()
-    log(0, "%s %s: finishing", log_src, name)
 
     
 scrape_sites()
