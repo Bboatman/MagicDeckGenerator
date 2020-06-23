@@ -8,7 +8,8 @@ import re
 from mtgsdk import Card
 import random
 import time
-import pickle
+import pickle, requests
+import urllib.parse
 
 log = Log("DECK SCRAPER", 1).log
 
@@ -56,6 +57,57 @@ class DeckScraper:
         random.shuffle(self.to_scrape)
         log(0, "Done building")
 
+    def primeFromDB(self):
+        headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
+        conn = http.client.HTTPConnection('localhost:8000')
+        conn.request('GET', '/api/unseen/', headers=headers)
+
+        response = json.loads(conn.getresponse().read())
+        conn.close()
+        names = [x['name'] for x in response]
+        for name in names:
+            self.getMtgTop8Prime(name)
+            self.getTappedOutPrime(name)
+
+        tCount = len([x for x in self.to_scrape if x["parent"] == 'http://tappedout.net/'])
+        mCount = len(self.to_scrape) - tCount
+
+        log(1, f"Total tappedOut to scrape {tCount}")
+        log(1, f"Total mtgTop8 to scrape {mCount}")
+
+        return self.to_scrape
+
+
+    def getMtgTop8Prime(self, searchStr):
+        body = {
+            "compet_check[P]": 1,
+            "compet_check[M]": 1,
+            "compet_check[C]": 1,
+            "compet_check[R]": 1,
+            "MD_check": 1,
+            "SB_check": 1,
+            "cards": searchStr
+            }
+
+        raw_html = requests.post("https://www.mtgtop8.com/search", json=body)
+        html = BeautifulSoup(raw_html.text, 'html.parser')
+
+        for link in html.select('a'):
+            if link['href'].find('archetype') >= 0:
+                self.getMtgTop8Links(link)
+
+    def getTappedOutPrime(self, searchStr):
+        sanitized = urllib.parse.quote(searchStr)
+        url = f"https://tappedout.net/search/?q={sanitized}"
+        raw_html = Scraper(url).simple_get()
+        html = BeautifulSoup(raw_html, 'html.parser')
+        for link in html.select('a'):
+            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
+                self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
+                self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+
+
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
             raw_html = Scraper(url).simple_get()
@@ -85,7 +137,7 @@ class DeckScraper:
                 else:
                     deck = self.processTappedOut(html)
 
-            if len(deck) > 0:
+            if len(deck) > 0 and len(deck) <150:
                 log(0, f"Saving: {url}")
                 deck_obj = Deck(url, url)
                 for member in deck:
@@ -173,16 +225,6 @@ class DeckScraper:
             if len(self.to_scrape) % 100 == 0:
                 log(0, f"To Scrape: {len(self.to_scrape)}, adding {new_url}")
                 pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
-    
-    # def get_id_for_card(self, card_name):
-    #     card_name = card_name.lower()
-    #     poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
-    #     if poss:
-    #         if poss[0] is None :
-    #             log(0, f"{card_name} not in db")
-    #         return poss[0].id if poss[0].id is not None else 0
-    #     else: 
-    #         return 0
 
 class DeckMember:
     def __init__(self, name, card_id, count = 1):
@@ -291,6 +333,7 @@ class DeckMember:
             "reaper of night": "reaper of night // harvest fear", \
             "life": "life // death", \
             "cut": "cut // ribbons", \
+            "hide": "hide // seek", \
             "nezumi shortfang": "nezumi shortfang // stabwhisker the odious", \
             "reckless waif": "reckless waif // merciless predator", \
             "extricator of sin": "extricator of sin // extricator of flesh", \
@@ -320,7 +363,17 @@ class DeckMember:
             "liliana, defiant necromancer": "liliana, heretical healer // liliana, defiant necromancer", \
             "jace, telepath unbound": "jace, vryn's prodigy // jace, telepath unbound", \
             "garruk, the veil-cursed": "garruk relentless // garruk, the veil-cursed", \
-            "loyal cathar": "loyal cathar // unhallowed cathar"
+            "loyal cathar": "loyal cathar // unhallowed cathar", \
+            "docent of perfection": "docent of perfection // final iteration", \
+            "conduit of storms": "conduit of storms // conduit of emrakul", \
+            "tangleclaw werewolf": "tangleclaw werewolf // fibrous entangler", \
+            "instigator gang": "instigator gang // wildblood pack", \
+            "bloodline keeper": "bloodline keeper // lord of lineage", \
+            "villagers of estwald": "villagers of estwald // howlpack of estwald", \
+            "fire": "fire // ice", \
+            "lim-dul the necromancer": "lim-dûl the necromancer", \
+            "pious evangel": "pious evangel // wayward disciple", \
+            "victory": "onward // victory"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]

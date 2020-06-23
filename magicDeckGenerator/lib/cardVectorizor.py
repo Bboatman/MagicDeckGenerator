@@ -36,7 +36,7 @@ class Vectorizor:
             log(0, "Cleaning Training Model")
             self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
             self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
-            self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
+            self.model = Doc2Vec(vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
                 self.twodmodel = Doc2Vec.load(self.twod_model_path) 
@@ -46,7 +46,7 @@ class Vectorizor:
                 log(1, "Failed to load")
                 self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
                 self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
-                self.model = Doc2Vec(vector_size=50, min_count=1, epochs=40, ns_exponent=.75)
+                self.model = Doc2Vec(vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
                 
         count = len(self.model.docvecs)
@@ -206,6 +206,7 @@ class Vectorizor:
         conn.request('GET', '/api/cards/', headers=headers)
 
         response = json.loads(conn.getresponse().read())
+        conn.close()
         
         for card in response:
             c = Card()

@@ -13,10 +13,11 @@ from playsound import playsound
 
 log = Log("MAIN", 0).log
 
+prime = True
+rebuild = False
+
 def scrape_sites(): 
     dS = DeckScraper()
-    #dS.prime()
-    #dS.build()
 
     try:
         headers = {'Content-type': 'application/json'}
@@ -25,20 +26,21 @@ def scrape_sites():
         resp = conn.getresponse().read()
         response = json.loads(resp)
         seen = [x["url"] for x in response]
-
-        obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
-        poss_links = obj["to_scrape"]
         dS.seen = seen
-        
-        # poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/in-edgeways/"}, \
-        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/06-04-18-meme-deck/"}, \
-        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/wugy-hug-n-hate/"}, \
-        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/delirius-manifestation/"}, \
-        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=502&d=206461&f=LI"}, \
-        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=17041&d=305431&f=EDHM"}, \
-        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=26186&d=398844&f=ST"}, \
-        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9191&d=252647&f=LI"}]
 
+        if prime:
+            if (rebuild):
+                dS.prime()
+                dS.build()
+            else:
+                # Builds scraping links by searching for decks with unmatched cards on tappedOut and top8
+                poss_links = dS.primeFromDB()
+        else:
+            obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
+            poss_links = obj["to_scrape"]
+        
+        
+       
         random.shuffle(poss_links)
 
         if len(poss_links) > 0:
@@ -51,7 +53,7 @@ def scrape_sites():
             log(1, f"Building new scrape model")
             dS.build()
 
-        while(len(dS.seen) < len(seen) + 100):
+        while((len(dS.seen) < len(seen) + 100) and len(dS.to_scrape) > 0):
             threads = list()
             log(0, f"Seen {len(dS.seen)} links")
             for index in range(3):
@@ -64,8 +66,9 @@ def scrape_sites():
                 log(0, f"Thread {index} done")
 
     except:
-        obj = {"to_scrape": dS.to_scrape}
-        pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
+        if not prime:
+            obj = {"to_scrape": dS.to_scrape}
+            pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
         raise
 
 def thread_function(name, dS):
@@ -73,13 +76,23 @@ def thread_function(name, dS):
     log(0, f"Thread {name} : starting")
     dS.generate_card_pool()
 
+def buildNewCardDB():
+    log(0, "Vectorizing Cards")
+    try:
+        v = Vectorizor(4)
+        v.load_training_sequence(True)
+        v.build_clean_array(True)
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
+    except Exception as e: 
+        traceback.print_exc()
+        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
+
 def vectorizeCards():
     log(0, "Vectorizing Cards")
-    model_dimensionality = 3
-    new_data_set = False
+    model_dimensionality = 4
     try:
         v = Vectorizor(model_dimensionality)
-        v.load_training_sequence(new_data_set)
+        v.load_training_sequence(False)
         v.graph_cards(True)
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
     except Exception as e: 
@@ -88,15 +101,17 @@ def vectorizeCards():
 
 
 if __name__ == "__main__":
-    #log(0, f"{len(sys.argv)} arguments found")
     command = sys.argv[1]
     if  (command == "scrape"):
         scrape_sites()
     elif (command == "vectorize"):
         vectorizeCards()
+    elif (command == "buildcards"):
+        buildNewCardDB()
     elif (command == "help"):
         print("scrape: Scrape mtgTop8 and tappedOut for deck data")
-        print("vectorize: Process Scryfall data and save it to the database")
+        print("buildcards: Process Scryfall data and save it to the database")
+        print("vectorize: Use machine learning to vectorize cards and reduce their dimensionality")
         print("help: display all command options")
     else: 
         print(f"'{command}' is not a valid command, try using 'help' to see all command options")
