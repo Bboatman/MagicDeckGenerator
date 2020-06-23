@@ -14,11 +14,10 @@ from playsound import playsound
 log = Log("MAIN", 0).log
 
 def scrape_sites(): 
-    log_src = "Main"
-
     dS = DeckScraper()
     #dS.prime()
     #dS.build()
+
     try:
         headers = {'Content-type': 'application/json'}
         conn = http.client.HTTPConnection('localhost:8000')
@@ -27,18 +26,18 @@ def scrape_sites():
         response = json.loads(resp)
         seen = [x["url"] for x in response]
 
-        #obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
-        #poss_links = obj["to_scrape"]
+        obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
+        poss_links = obj["to_scrape"]
         dS.seen = seen
         
-        poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/in-edgeways/"}, \
-            {"parent": 'http://tappedout.net/', "url": "mtg-decks/06-04-18-meme-deck/"}, \
-            {"parent": 'http://tappedout.net/', "url": "mtg-decks/wugy-hug-n-hate/"}, \
-            {"parent": 'http://tappedout.net/', "url": "mtg-decks/delirius-manifestation/"}, \
-            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=502&d=206461&f=LI"}, \
-            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=17041&d=305431&f=EDHM"}, \
-            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=26186&d=398844&f=ST"}, \
-            {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9191&d=252647&f=LI"}]
+        # poss_links = [{"parent": 'http://tappedout.net/', "url": "mtg-decks/in-edgeways/"}, \
+        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/06-04-18-meme-deck/"}, \
+        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/wugy-hug-n-hate/"}, \
+        #     {"parent": 'http://tappedout.net/', "url": "mtg-decks/delirius-manifestation/"}, \
+        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=502&d=206461&f=LI"}, \
+        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=17041&d=305431&f=EDHM"}, \
+        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=26186&d=398844&f=ST"}, \
+        #     {"parent": 'https://www.mtgtop8.com/', "url": "event?e=9191&d=252647&f=LI"}]
 
         random.shuffle(poss_links)
 
@@ -47,14 +46,14 @@ def scrape_sites():
             dS.to_scrape = poss_links
             #dS.to_scrape = [] #Uncomment to clean scraping array
             #dS.build() #Uncomment to clean scraping array
-            log(0, f"{log_src}  : Ingesting {len(dS.to_scrape)} links")
+            log(0, f"Ingesting {len(dS.to_scrape)} links")
         else:
-            log(1, "%s : Building new scrape model", log_src)
+            log(1, f"Building new scrape model")
             dS.build()
 
         while(len(dS.seen) < len(seen) + 100):
             threads = list()
-            log(0, f"{log_src} : Seen {len(dS.seen)} links")
+            log(0, f"Seen {len(dS.seen)} links")
             for index in range(3):
                 x = threading.Thread(target=thread_function, args=(index,dS,))
                 threads.append(x)
@@ -62,7 +61,7 @@ def scrape_sites():
 
             for index, thread in enumerate(threads):
                 thread.join()
-                log(0, f"{log_src} : thread {index} done")
+                log(0, f"Thread {index} done")
 
     except:
         obj = {"to_scrape": dS.to_scrape}
@@ -71,7 +70,7 @@ def scrape_sites():
 
 def thread_function(name, dS):
     log_src = "Thread"
-    log(0, f"{log_src} {name} : starting")
+    log(0, f"Thread {name} : starting")
     dS.generate_card_pool()
 
 def vectorizeCards():

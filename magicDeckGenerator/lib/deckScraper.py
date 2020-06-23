@@ -101,11 +101,16 @@ class DeckScraper:
         if not members:
             return []
         else:
-            for item in members:
-                count = item.find("div").contents[0].strip()
-                name = item.find("span").contents[0]
-                card_id = self.get_id_for_card(name)
-                deck.append(DeckMember(name, card_id, count))
+            try:
+                for item in members:
+                    if (item.find("div") and item.find("div").contents[0] != None):
+                        count = item.find("div").contents[0].strip()
+                        name = item.find("span").contents[0]
+                        card_id = 0
+                        deck.append(DeckMember(name, card_id, count))
+            except TypeError as err:
+                log(3, err)
+
         log(0, "Added MtgTop8 Cards")
         similar_decks = html.select("div.S14 a")
         for nlink in similar_decks:
@@ -125,7 +130,7 @@ class DeckScraper:
         else :
             for item in members:
                 name = item["data-orig"]
-                card_id = self.get_id_for_card(name)
+                card_id = 0
                 count = item["data-qty"]
                 deck.append(DeckMember(name, card_id, count))
 
@@ -147,6 +152,7 @@ class DeckScraper:
         conn = http.client.HTTPConnection('localhost:8000')
         conn.request('POST', '/api/deck/', json.dumps(body), headers)
         resp = conn.getresponse().read()
+        conn.close()
         response = json.loads(resp)
         deck_id =response['id']
         deck_size = body["deck_size"]
@@ -154,7 +160,9 @@ class DeckScraper:
             ret = member.build_for_db(deck_id, deck_size)
             req = http.client.HTTPConnection('localhost:8000')
             req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
+            req.close()
             log(0, ret)
+            time.sleep(.1)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
@@ -166,15 +174,15 @@ class DeckScraper:
                 log(0, f"To Scrape: {len(self.to_scrape)}, adding {new_url}")
                 pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
     
-    def get_id_for_card(self, card_name):
-        card_name = card_name.lower()
-        poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
-        if poss:
-            if poss[0] is None :
-                log(0, f"{card_name} not in db")
-            return poss[0].id if poss[0].id is not None else 0
-        else: 
-            return 0
+    # def get_id_for_card(self, card_name):
+    #     card_name = card_name.lower()
+    #     poss = Card.where(name=card_name).where(page=1).where(pageSize=1).all()
+    #     if poss:
+    #         if poss[0] is None :
+    #             log(0, f"{card_name} not in db")
+    #         return poss[0].id if poss[0].id is not None else 0
+    #     else: 
+    #         return 0
 
 class DeckMember:
     def __init__(self, name, card_id, count = 1):
@@ -311,7 +319,8 @@ class DeckMember:
             "nissa, sage animist": "nissa, vastwood seer // nissa, sage animist", \
             "liliana, defiant necromancer": "liliana, heretical healer // liliana, defiant necromancer", \
             "jace, telepath unbound": "jace, vryn's prodigy // jace, telepath unbound", \
-            "garruk, the veil-cursed": "garruk relentless // garruk, the veil-cursed"
+            "garruk, the veil-cursed": "garruk relentless // garruk, the veil-cursed", \
+            "loyal cathar": "loyal cathar // unhallowed cathar"
         }
         if self.name in cardnames:
             self.name = cardnames[self.name]
