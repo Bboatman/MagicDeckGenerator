@@ -100,6 +100,23 @@ def card_by_name(request, name):
         card.delete()
         return Response(status=status.HTTP_204_NO_CONTENT) 
 
+@api_view(['GET'])
+@permission_classes((permissions.AllowAny,))
+def unseen_card(request):
+    try:
+        query = "SELECT * FROM magic_api_card AS nc \
+                WHERE name NOT IN \
+                    (SELECT distinct card_id FROM magic_api_deck_detail AS ec) \
+                OFFSET floor(random()*500) \
+                limit 10"
+        queryset = Card.objects.raw(query)
+    except Card.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CardSerializer(list(queryset), many=True)
+        return Response(serializer.data)
+
 class DeckViewSet(viewsets.ModelViewSet):
     queryset = Deck.objects.all()
     serializer_class = DeckSerializer

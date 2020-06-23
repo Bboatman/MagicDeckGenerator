@@ -19,5 +19,6 @@ urlpatterns = [
     path('deck_detail/', views.deck_detail_info),
     path('deck_detail/<str:name>', views.deck_detail_info),
     path('deck_detail_list/', views.deck_detail_list),
+    path('unseen/', views.unseen_card),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
