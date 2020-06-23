@@ -100,13 +100,13 @@ class DeckScraper:
         sanitized = urllib.parse.quote(searchStr)
         url = f"https://tappedout.net/search/?q={sanitized}"
         raw_html = Scraper(url).simple_get()
-        html = BeautifulSoup(raw_html, 'html.parser')
-        for link in html.select('a'):
-            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
-            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
-
+        if (raw_html != None):
+            html = BeautifulSoup(raw_html, 'html.parser')
+            for link in html.select('a'):
+                if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
+                    self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+                elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
+                    self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
 
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
