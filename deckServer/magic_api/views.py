@@ -108,7 +108,7 @@ def unseen_card(request):
                 WHERE name NOT IN \
                     (SELECT distinct card_id FROM magic_api_deck_detail AS ec) \
                 OFFSET floor(random()*500) \
-                limit 10"
+                limit 3"
         queryset = Card.objects.raw(query)
     except Card.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)

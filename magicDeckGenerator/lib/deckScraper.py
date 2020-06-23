@@ -69,11 +69,10 @@ class DeckScraper:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
 
-        tCount = len([x for x in self.to_scrape if x["parent"] == 'http://tappedout.net/'])
-        mCount = len(self.to_scrape) - tCount
 
-        log(1, f"Total tappedOut to scrape {tCount}")
-        log(1, f"Total mtgTop8 to scrape {mCount}")
+        print(self.to_scrape)
+        #log(1, f"Total tappedOut to scrape {tCount}")
+        #log(1, f"Total mtgTop8 to scrape {mCount}")
 
         return self.to_scrape
 
@@ -91,22 +90,20 @@ class DeckScraper:
 
         raw_html = requests.post("https://www.mtgtop8.com/search", json=body)
         html = BeautifulSoup(raw_html.text, 'html.parser')
-
-        for link in html.select('a'):
-            if link['href'].find('archetype') >= 0:
-                self.getMtgTop8Links(link)
+        for nlink in html.select('a'):
+                if nlink['href'].find('event?e') >= 0:
+                    self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
 
     def getTappedOutPrime(self, searchStr):
         sanitized = urllib.parse.quote(searchStr)
         url = f"https://tappedout.net/search/?q={sanitized}"
-        raw_html = Scraper(url).simple_get()
-        if (raw_html != None):
-            html = BeautifulSoup(raw_html, 'html.parser')
-            for link in html.select('a'):
-                if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                    self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
-                elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                    self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+        raw_html = requests.get(url)
+        html = BeautifulSoup(raw_html.text, 'html.parser')
+        for link in html.select('a'):
+            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
+                self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
+                self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
 
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
