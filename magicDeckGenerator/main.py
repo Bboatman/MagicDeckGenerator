@@ -100,10 +100,10 @@ def buildNewCardDB():
         v = Vectorizor(4)
         v.load_training_sequence(True)
         v.build_clean_array(True)
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
+        playsound('./models/cheer.wav')
     except Exception as e: 
         traceback.print_exc()
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
+        playsound('./models/fart.wav')
 
 def vectorizeCards():
     log(1, "Vectorizing Cards")
@@ -112,10 +112,10 @@ def vectorizeCards():
         v = Vectorizor(model_dimensionality)
         v.load_training_sequence(False)
         v.graph_cards(True)
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/cheer.wav')
+        playsound('./models/cheer.wav')
     except Exception as e: 
         traceback.print_exc()
-        playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
+        playsound('./models/fart.wav')
 
 
 if __name__ == "__main__":

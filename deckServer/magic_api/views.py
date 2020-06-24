@@ -104,10 +104,15 @@ def card_by_name(request, name):
 @permission_classes((permissions.AllowAny,))
 def unseen_card(request):
     try:
-        query = "SELECT * FROM magic_api_card AS nc \
+        count = Card.objects.count()
+        injested_count = Deck_Detail.objects.order_by('card_id').distinct("card_id").count()
+        remaining = count - injested_count
+        if remaining > 3:
+            remaining -= 3
+        query = f"SELECT * FROM magic_api_card AS nc \
                 WHERE name NOT IN \
                     (SELECT distinct card_id FROM magic_api_deck_detail AS ec) \
-                OFFSET floor(random()*500) \
+                OFFSET floor(random()*{remaining}) \
                 limit 3"
         queryset = Card.objects.raw(query)
     except Card.DoesNotExist:
@@ -194,7 +199,10 @@ def deck_detail_info(request, name=None):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        print(serializer.errors)
+        badCard = {"name": request.data['card'] + ":BAD", "toughness": -100, "power": -100, "cmc": -100}
+        badCardSerializer = CardSerializer(data=badCard)
+        if badCardSerializer.is_valid():
+            badCardSerializer.save()
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'PUT':
