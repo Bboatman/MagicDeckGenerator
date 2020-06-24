@@ -29,10 +29,11 @@ class Scraper:
         """
         Returns True if the response seems to be HTML, False otherwise.
         """
-        content_type = resp.headers['Content-Type'].lower()
-        return (resp.status_code == 200 
-                and content_type is not None 
-                and content_type.find('html') > -1)
+        if 'Content-Type' in resp.headers:
+            content_type = resp.headers['Content-Type'].lower()
+            return (resp.status_code == 200 
+                    and content_type is not None 
+                    and content_type.find('html') > -1)
 
 
     def log_error(self, e):

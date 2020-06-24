@@ -11,7 +11,7 @@ import time
 import pickle, requests
 import urllib.parse
 
-log = Log("DECK SCRAPER", 1).log
+log = Log("DECK SCRAPER", 0).log
 
 urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
@@ -65,12 +65,13 @@ class DeckScraper:
         response = json.loads(conn.getresponse().read())
         conn.close()
         names = [x['name'] for x in response]
+        log(1, names)
         for name in names:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
 
 
-        print(self.to_scrape)
+        log(0, self.to_scrape)
         #log(1, f"Total tappedOut to scrape {tCount}")
         #log(1, f"Total mtgTop8 to scrape {mCount}")
 
@@ -90,20 +91,32 @@ class DeckScraper:
 
         raw_html = requests.post("https://www.mtgtop8.com/search", json=body)
         html = BeautifulSoup(raw_html.text, 'html.parser')
+        count = 0
         for nlink in html.select('a'):
                 if nlink['href'].find('event?e') >= 0:
-                    self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
+                    added = self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
+                    if added:
+                        count += 1
+        
+        log(1, f"Found {count} links for {searchStr} in mtgTop8")
 
     def getTappedOutPrime(self, searchStr):
         sanitized = urllib.parse.quote(searchStr)
         url = f"https://tappedout.net/search/?q={sanitized}"
         raw_html = requests.get(url)
         html = BeautifulSoup(raw_html.text, 'html.parser')
+        count = 0
         for link in html.select('a'):
             if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+                added = self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+                if added:
+                    count += 1
             elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+                added = self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+                if added:
+                    count += 1
+
+        log(1, f"Found {count} links for {searchStr} in tappedOut")
 
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
@@ -115,7 +128,7 @@ class DeckScraper:
                     self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
                 
 
-    def generate_card_pool(self):
+    def generate_card_pool(self, lock=None):
         popped = self.to_scrape.pop()
         url = popped["parent"] + popped['url']
 
@@ -123,7 +136,13 @@ class DeckScraper:
             log(0, f"Seen: {url}")
             return
         else:
-            self.seen.append(url)
+            if (lock != None):
+                lock.acquire()
+                self.seen.append(url)
+                lock.release()
+            else :
+                self.seen.append(url)
+
             raw_html = Scraper(url).simple_get()
             log(0, f"Got: {url}")
             deck = []
@@ -134,8 +153,8 @@ class DeckScraper:
                 else:
                     deck = self.processTappedOut(html)
 
-            if len(deck) > 0 and len(deck) <150:
-                log(0, f"Saving: {url}")
+            if len(deck) >= 50 and len(deck) <160:
+                log(1, f"Saving: {url}")
                 deck_obj = Deck(url, url)
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
@@ -210,7 +229,6 @@ class DeckScraper:
             req = http.client.HTTPConnection('localhost:8000')
             req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
             req.close()
-            log(0, ret)
             time.sleep(.1)
 
     def add_to_scrape_pool(self, link, parent_domain):
@@ -222,6 +240,8 @@ class DeckScraper:
             if len(self.to_scrape) % 100 == 0:
                 log(0, f"To Scrape: {len(self.to_scrape)}, adding {new_url}")
                 pickle.dump( {"to_scrape": self.to_scrape}, open( "./models/pickledLinks.p", "wb" ) )
+            return True
+        return False
 
 class DeckMember:
     def __init__(self, name, card_id, count = 1):
@@ -317,7 +337,6 @@ class DeckMember:
             "azor's gateway": "azor's gateway // sanctum of the sun", \
             "primal amulet": "primal amulet // primal wellspring", \
             "give": "give // take", \
-            "lim-dul's vault": "lim-dûl's vault", \
             "huntmaster of the fells": "huntmaster of the fells // ravager of the fells", \
             "farm": "farm // market", \
             "commit": "commit // memory", \
@@ -368,12 +387,60 @@ class DeckMember:
             "bloodline keeper": "bloodline keeper // lord of lineage", \
             "villagers of estwald": "villagers of estwald // howlpack of estwald", \
             "fire": "fire // ice", \
-            "lim-dul the necromancer": "lim-dûl the necromancer", \
             "pious evangel": "pious evangel // wayward disciple", \
-            "victory": "onward // victory"
+            "victory": "onward // victory", \
+            "daring sleuth": "daring sleuth // bearer of overwhelming truths", \
+            "lambholt pacifist": "lambholt pacifist // lambholt butcher", \
+            "lambholt elder": "lambholt elder // silverpelt werewolf", \
+            "bushi tenderfoot": "bushi tenderfoot // kenzo the hardhearted", \
+            "flesh": "flesh // blood", \
+            "afflicted deserter // werewolf ransacker":"afflicted deserter // werewolf ransacker", \
+            "daybreak ranger":"daybreak ranger // nightfall predator", \
+            "hermit of the natterknolls": "hermit of the natterknolls // lone wolf of the natterknolls", \
+            "scorned villager": "scorned villager // moonscarred werewolf", \
+            "marton stromgald": "márton stromgald", \
+            "mayor of avabruck": "mayor of avabruck // howlpack alpha", \
+            "homura, human ascendant": "homura, human ascendant // homura's essence", \
+            "wear": "wear // tear", \
+            "dusk": "dusk // dawn", \
+            "budoka pupil": "budoka pupil // ichiga, who topples oaks", \
+            "budoka gardener": "budoka gardener // dokai, weaver of life", \
+            "ifh-biff efreet": "ifh-bíff efreet", \
+            "driven": "driven // despair", \
+            "gruun, the lonely king": "grunn, the lonely king", \
+            "sage of ancient lore": "sage of ancient lore // werewolf of ancient hunger", \
+            "sasaya, orochi ascendant": "sasaya, orochi ascendant // sasaya's essence", \
+            "orochi eggwatcher": "orochi eggwatcher // shidako, broodmistress", \
+            "neglected heirloom": "neglected heirloom // ashmouth blade", \
+            "hanweir militia captain": "hanweir militia captain // westvale cult leader", \
+            "ulrich of the krallenhorde": "ulrich of the krallenhorde // ulrich, uncontested alpha", \
+            "akki lavarunner": "akki lavarunner // tok-tok, volcano born", \
+            "hadana's climb": "hadana's climb // winged temple of orazca", \
+            "chandra, fire of kaladesh": "chandra, fire of kaladesh // chandra, roaring flame", \
+            "student of elements": "student of elements // tobita, master of winds", \
+            "onward": "onward // victory", \
+            "dandan": "dandân", \
+            "smoldering werewolf": "smoldering werewolf // erupting dreadwolf", \
+            "insult": "insult // injury", \
+            "refuse": "refuse // cooperate", \
+            "order": "order // chaos", \
+            "skin invasion": "skin invasion // skin shedder"
         }
+
         if self.name in cardnames:
             self.name = cardnames[self.name]
+        elif "garbage elemental" in self.name:
+            self.name = "garbage elemental"
+        elif "sly spy" in self.name:
+            self.name = "sly spy"
+        elif "ineffable blessing" in self.name:
+            self.name = "ineffable blessing"
+        elif "bosium" in self.name:
+            self.name = self.name.replace("bosium", "bösium")
+        elif "jotun" in self.name:
+            self.name = self.name.replace("jotun", "jötun")
+        elif "lim-dul" in self.name:
+            self.name = self.name.replace("lim-dul", "lim-dûl")
 
 class Deck:
     def __init__(self, name, url):

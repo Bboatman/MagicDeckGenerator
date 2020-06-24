@@ -1,4 +1,4 @@
-import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys
+import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys, copy
 import numpy as np
 
 from lib.deckScraper import DeckScraper
@@ -48,22 +48,42 @@ def scrape_sites():
             dS.to_scrape = poss_links
             #dS.to_scrape = [] #Uncomment to clean scraping array
             #dS.build() #Uncomment to clean scraping array
-            log(0, f"Ingesting {len(dS.to_scrape)} links")
+            log(1, f"Ingesting {len(dS.to_scrape)} links")
         else:
             log(1, f"Building new scrape model")
             dS.build()
 
-        while((len(dS.seen) < len(seen) + 100) and len(dS.to_scrape) > 0):
+        log(1, f"Scraping {len(dS.to_scrape)} initially")
+        startCount = copy.deepcopy(len(dS.seen)) 
+        totalSeen = 0
+
+        while(totalSeen < 100 and len(dS.to_scrape) > 0):
+            seen = copy.deepcopy(dS.seen)
             threads = list()
-            log(0, f"Seen {len(dS.seen)} links")
+            log(1, f"Seen {len(dS.seen)} links")
             for index in range(3):
-                x = threading.Thread(target=thread_function, args=(index,dS,))
+                lock = threading.Lock()
+                x = threading.Thread(target=thread_function, args=(index,dS,lock,))
                 threads.append(x)
                 x.start()
 
             for index, thread in enumerate(threads):
                 thread.join()
-                log(0, f"Thread {index} done")
+                log(1, f"Thread {index} done")
+            
+            totalSeen = len(dS.to_scrape) - startCount
+
+            if (len(dS.to_scrape) < 5) and prime:
+                log(1, f"Scraped {totalSeen} links")
+                processed = 0
+                poss_links = dS.primeFromDB()
+                log(1, f"Scraping {len(dS.to_scrape)} initially")
+                if len(poss_links) > 0:
+                    random.shuffle(poss_links)
+                    dS.to_scrape = poss_links
+
+        log(1, f"Total links seen: {totalSeen}")
+        log(1, f"Links remaining unprocessed {len(dS.to_scrape)}")
 
     except:
         if not prime:
@@ -71,13 +91,11 @@ def scrape_sites():
             pickle.dump( obj, open( "./models/pickledLinks.p", "wb" ) )
         raise
 
-def thread_function(name, dS):
-    log_src = "Thread"
-    log(0, f"Thread {name} : starting")
-    dS.generate_card_pool()
+def thread_function(name, dS, lock):
+    dS.generate_card_pool(lock)
 
 def buildNewCardDB():
-    log(0, "Vectorizing Cards")
+    log(1, "Vectorizing Cards")
     try:
         v = Vectorizor(4)
         v.load_training_sequence(True)
@@ -88,7 +106,7 @@ def buildNewCardDB():
         playsound('/home/brooke/MagicDeckGenerator/magicDeckGenerator/models/fart.wav')
 
 def vectorizeCards():
-    log(0, "Vectorizing Cards")
+    log(1, "Vectorizing Cards")
     model_dimensionality = 4
     try:
         v = Vectorizor(model_dimensionality)
