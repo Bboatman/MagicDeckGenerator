@@ -103,3 +103,9 @@ class CardVectorPointSerializer(serializers.ModelSerializer):
         instance.alg_weight = validated_data.get('alg_weight', instance.alg_weight)
         instance.save()
         return instance
+
+
+class VectorListSerializer(serializers.ListSerializer):
+    child = CardVectorPointSerializer()
+    allow_null = True
+    many = True

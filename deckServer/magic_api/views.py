@@ -6,6 +6,8 @@ from django.http import HttpResponse
 from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from itertools import islice
+
 
 def index(request):
     return HttpResponse("Hello, world. You're at the polls index.")
@@ -238,10 +240,21 @@ def card_vector_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = CardVectorPointSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        batch_size = 100
+        created = 0
+        serializer = VectorListSerializer(data=request.data)
+        if (serializer.is_valid()):
+            while True:
+                batch = islice(request.data, batch_size)
+                serializer = VectorListSerializer(data=batch)
+                if (serializer.is_valid()):
+                    serializer.save()
+                created += len(batch)
+                if not batch:
+                    break
+        
+            return Response(serializer.response)
+                
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'PUT':

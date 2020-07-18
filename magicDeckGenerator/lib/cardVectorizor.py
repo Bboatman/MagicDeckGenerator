@@ -176,13 +176,20 @@ class Vectorizor:
 
         if naive:
             algname = "naive" + algorithm
+        save_arr = []
         for i,c in enumerate(cards):
             x, y = result[i].tolist()
             if (save_to_db):
-                c.save_decomp_res(algname, x, y, self.model_dimensionality)
+                save_arr.append(c.save_decomp_res(algname, x, y, self.model_dimensionality))
             name = c.name
             hexVal = c.generate_color_hex()
             ret.append([name, hexVal] + result[i].tolist())
+        
+        if (save_to_db):
+            body = json.dumps(save_arr)
+            headers = {'Content-type': 'application/json'}
+            conn = http.client.HTTPConnection('localhost:8000')
+            conn.request('POST', '/api/card_vector/', body, headers)
         
         dirname = os.path.dirname(__file__)
         path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
@@ -408,8 +415,5 @@ class Card:
         }
         ret["alg_weight"] = dimension
         ret["card"] = self.name
-        
-        body = json.dumps(ret)
-        headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection('localhost:8000')
-        conn.request('PUT', '/api/card_vector/', body, headers)
+
+        return ret

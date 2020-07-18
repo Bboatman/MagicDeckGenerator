@@ -44,7 +44,7 @@ class Card(models.Model):
 
 class Card_Vector_Point(models.Model):
     id = models.AutoField(primary_key=True)
-    card = models.ForeignKey(Card, to_field='name', on_delete=models.CASCADE)
+    card = models.CharField(max_length=200)
     x_value = models.FloatField(default=0)
     y_value = models.FloatField(default=0)
     algorithm = models.CharField(max_length=200)
