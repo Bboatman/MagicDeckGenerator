@@ -288,7 +288,7 @@ class Card:
             if 'oracle_text' in json_info:
                 self.text = json_info['oracle_text']
             self.card_type = json_info['type_line'].split("—")[0].strip()
-            rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3}
+            rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3, 'special': 4, 'bonus' : 5}
             self.rarity = rarity[json_info['rarity'].strip().lower()]
             self.cmc = int(json_info['cmc'])
             self.generate_color_identity(json_info['color_identity'])

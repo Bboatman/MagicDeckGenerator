@@ -13,19 +13,22 @@ import urllib.parse
 
 log = Log("DECK SCRAPER", 0).log
 
-urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"}, \
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
+#urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
+#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
+#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
+#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
+#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"}, \
+#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
+#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
+
+
+urls = [{"parent": 'http://tappedout.net/', "url": "users/1dropproductions/mtg-decks/"}]
 
 class DeckScraper:
     def __init__(self):

@@ -20,7 +20,7 @@ class Card(models.Model):
     name = models.CharField(max_length=200, unique=True)
     rarity = models.IntegerField(
         default=0,
-        choices=((0, 'common'), (1, 'uncommon'), (2, 'rare'), (3, 'mythic')))
+        choices=((0, 'common'), (1, 'uncommon'), (2, 'rare'), (3, 'mythic'), (4, 'special'), (5, 'bonus')))
     card_type = models.FloatField(default=0)
     toughness = models.CharField(max_length=200)
     power = models.CharField(max_length=200)
