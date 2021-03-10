@@ -51,13 +51,21 @@ def scrape_sites():
             log(1, f"Ingesting {len(dS.to_scrape)} links")
         else:
             log(1, f"Building new scrape model")
+            tried = 0
             dS.build()
 
         log(1, f"Scraping {len(dS.to_scrape)} initially")
         startCount = copy.deepcopy(len(dS.seen)) 
         totalSeen = 0
 
+        tried = 0
         while(totalSeen < 100 and len(dS.to_scrape) > 0):
+            if prime and tried >= 6:
+                tried = 0
+                log(0, "===== Searching DB =====")
+                poss_links = dS.primeFromDB()
+
+            tried += 1
             seen = copy.deepcopy(dS.seen)
             threads = list()
             log(1, f"Seen {len(dS.seen)} links")

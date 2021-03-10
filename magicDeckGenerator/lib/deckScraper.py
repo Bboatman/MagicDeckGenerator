@@ -27,8 +27,15 @@ log = Log("DECK SCRAPER", 0).log
 #        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
 #        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
 
-
-urls = [{"parent": 'http://tappedout.net/', "url": "users/1dropproductions/mtg-decks/"}]
+urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=64&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=264&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=290&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=215&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=330&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=286&meta=52&f=ST"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=331&meta=52&f=ST"}]
 
 class DeckScraper:
     def __init__(self):
