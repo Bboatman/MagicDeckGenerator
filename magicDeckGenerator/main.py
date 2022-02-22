@@ -11,21 +11,37 @@ from sklearn.decomposition import PCA
 from gensim.utils import simple_preprocess
 from playsound import playsound
 
-log = Log("MAIN", 0).log
+log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
+
+def test_connection():
+    try:
+        headers = {'Content-type': 'application/json'}
+        conn = http.client.HTTPConnection('localhost:8080')
+        conn.request('GET', '/api/deck/', headers=headers)
+        resp = conn.getresponse().read()
+        response = json.loads(resp)
+        print(response)
+    except:
+        print("Issue connecting")
+
+
 
 def scrape_sites(): 
     dS = DeckScraper()
 
     try:
         headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection('localhost:8000')
+        conn = http.client.HTTPConnection('localhost:8080')
         conn.request('GET', '/api/deck/', headers=headers)
         resp = conn.getresponse().read()
         response = json.loads(resp)
-        seen = [x["url"] for x in response]
+        seen = []
+        print(resp)
+        if response["status"] == 200 :
+            seen = [x["url"] for x in response]
         dS.seen = seen
 
         if prime:
@@ -128,7 +144,9 @@ def vectorizeCards():
 
 if __name__ == "__main__":
     command = sys.argv[1]
-    if  (command == "scrape"):
+    if (command == "test"):
+        test_connection()
+    elif  (command == "scrape"):
         scrape_sites()
     elif (command == "vectorize"):
         vectorizeCards()
