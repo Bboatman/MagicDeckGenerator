@@ -1,14 +1,5 @@
 # Magic: The Gathering Deck Generator
 
-## Feeling fancy?
-
-I tried to create a python environment setup tool, pretty sure it works. Feeling brave? It can be run with the command below. Use the -h flag to see variable names if you want to use it to set up your data automagically
-
-```
-python3 init.py
-```
-
-
 ## Install Python Dependencies
 
 From project root run
@@ -17,23 +8,14 @@ From project root run
 pip3 install --user -r requirements.txt
 ```
 
-## Prime Your Models
+## Feeling fancy?
 
-Model priming can be built from magicDeckGenerator/cardVectorizor. If you have a database set up, create a .env file with the following variables:
-
-- PGUSER=$dbUsername
-- PGHOST=$host
-- PGPASSWORD=$dbPassword  
-- PGDATABASE=$dbName
-- DJANGO_SECRET=$secretDjangoKey
-
-In one terminal start database with
+I tried to create a python environment setup tool, pretty sure it works. Feeling brave? It can be run with the command below. Use the -h flag to see variable names if you want to use it to set up your data automagically
 
 ```
-python manage.py makemigrations
-python manage.py migrate
-python manage.py runserver
+python3 init.py
 ```
+
 
 If not running from database, you can still build the vector models for cards with
 
@@ -86,10 +68,11 @@ Okay, now what? So we turned some magic cards into numbers, and that was cool, b
 
 ### Scraping Time!
 
-Built with {10} cups of coffee
 
 ## Big ToDos
 - Audit existing decks in db to verify that expected card count matches card-detail information for improve save check
+- Add automated data loading either to init.py or main.py
+- Actually build The Thing(TM)
 
 ## Implementation Ideas
 #### Algorithmic ideas to play with
@@ -122,3 +105,6 @@ Built with {10} cups of coffee
  - From an existing tapped out cube as a whole set
  - Alternate taking turns from whole set
  - From limited card hands available as generator for players unfamiliar with drafting
+
+
+Built with {15} cups of coffee and {7} energy drinks
