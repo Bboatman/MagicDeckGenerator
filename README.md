@@ -2,11 +2,12 @@
 
 ## Feeling fancy?
 
-I tried to create a python environment setup tool, pretty sure it works. Feeling brave? It can be run with the command below. Use the -h flag to see variable names if you want to use it to set up your .env file automagically.
+I tried to create a python environment setup tool, pretty sure it works. Feeling brave? It can be run with the command below. Use the -h flag to see variable names if you want to use it to set up your data automagically
 
 ```
 python3 init.py
 ```
+
 
 ## Install Python Dependencies
 
@@ -15,11 +16,6 @@ From project root run
 ```
 pip3 install --user -r requirements.txt
 ```
-
-## Necessary Data
-
-Save this file to magicDeckGenerator/models
-[Skyforge Card Data Set](https://archive.scryfall.com/json/scryfall-default-cards.json)
 
 ## Prime Your Models
 

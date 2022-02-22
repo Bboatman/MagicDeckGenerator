@@ -51,6 +51,9 @@ def scrape_sites():
             else:
                 # Builds scraping links by searching for decks with unmatched cards on tappedOut and top8
                 poss_links = dS.primeFromDB()
+                if len(poss_links) == 0:
+                    dS.prime()
+                    dS.build()
         else:
             obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
             poss_links = obj["to_scrape"]

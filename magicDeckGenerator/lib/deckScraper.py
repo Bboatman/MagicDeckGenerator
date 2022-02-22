@@ -1,41 +1,27 @@
+
+import json, re, random, time, urllib.parse, pickle, requests
 from .scraper import Scraper
 from .log import Log
 from bs4 import BeautifulSoup
 from importlib import import_module
 import http.client
-import json
-import re
 from mtgsdk import Card
-import random
-import time
-import pickle, requests
-import urllib.parse
 
 log = Log("DECK SCRAPER", 0).log
 
-#urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
-#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
-#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
-#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
-#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"}, \
-#        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
-#        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
-
-urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/"}, \
+urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"}, \
         {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=64&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=264&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=290&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=215&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=330&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=286&meta=52&f=ST"}, \
-        {"parent": 'https://www.mtgtop8.com/', "url": "archetype?a=331&meta=52&f=ST"}]
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"}, \
+        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"}, \
+        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
 
 class DeckScraper:
     def __init__(self):
@@ -68,12 +54,17 @@ class DeckScraper:
         log(0, "Done building")
 
     def primeFromDB(self):
-        headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
-        conn = http.client.HTTPConnection('localhost:8000')
-        conn.request('GET', '/api/unseen/', headers=headers)
+        response = []
+        try:
+            headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
+            conn = http.client.HTTPConnection('localhost:8000')
+            conn.request('GET', '/api/unseen/', headers=headers)
 
-        response = json.loads(conn.getresponse().read())
-        conn.close()
+            response = json.loads(conn.getresponse().read())
+            conn.close()
+        except:
+            print("Issue connecting to the database")
+
         names = [x['name'] for x in response]
         log(1, names)
         for name in names:
