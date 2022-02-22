@@ -21,7 +21,8 @@ If not running from database, you can still build the vector models for cards wi
 
 ```
 cd magicDeckGenerator/cardVectorizor
-python vectorizor.py
+python3 main.py buildcards
+python3 main.py vectorize
 ```
 
 Make sure primeModel has write_to_db set to false if you run this way
