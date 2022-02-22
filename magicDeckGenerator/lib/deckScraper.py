@@ -5,7 +5,10 @@ from .log import Log
 from bs4 import BeautifulSoup
 from importlib import import_module
 import http.client
-from mtgsdk import Card
+from decouple import config
+
+host = config("HOST")
+port = int(config("PORT"))
 
 log = Log("DECK SCRAPER", 0).log
 
@@ -57,7 +60,7 @@ class DeckScraper:
         response = []
         try:
             headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
-            conn = http.client.HTTPConnection('localhost:8000')
+            conn = http.client.HTTPConnection(host, port)
             conn.request('GET', '/api/unseen/', headers=headers)
 
             response = json.loads(conn.getresponse().read())
@@ -216,9 +219,9 @@ class DeckScraper:
 
     def saveToDB(self, deck):
         body = deck.build_for_db()
-        
+        # TODO: Move all logic to back end for bulk update
         headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection('localhost:8000')
+        conn = http.client.HTTPConnection(host, port)
         conn.request('POST', '/api/deck/', json.dumps(body), headers)
         resp = conn.getresponse().read()
         conn.close()
@@ -227,7 +230,7 @@ class DeckScraper:
         deck_size = body["deck_size"]
         for member in deck.deckMembers:
             ret = member.build_for_db(deck_id, deck_size)
-            req = http.client.HTTPConnection('localhost:8000')
+            req = http.client.HTTPConnection(host, port)
             req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
             req.close()
             time.sleep(.1)

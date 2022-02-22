@@ -1,4 +1,5 @@
 import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys, copy
+import unittest
 import numpy as np
 
 from lib.deckScraper import DeckScraper
@@ -10,32 +11,61 @@ from sklearn.decomposition import PCA
 
 from gensim.utils import simple_preprocess
 from playsound import playsound
+from decouple import config
 
 log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
+host = config("HOST")
+port = int(config("PORT"))
 
 def test_connection():
-    try:
-        headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection('localhost:8080')
-        conn.request('GET', '/api/deck/', headers=headers)
-        resp = conn.getresponse().read()
-        response = json.loads(resp)
-        print(response)
-    except:
-        print("Issue connecting")
+    class TestConnection(unittest.TestCase):
+        def setUp(self):
+            self.headers = {'Content-type': 'application/json'}
+            self.conn = http.client.HTTPConnection(host, port)
+
+        def get_decks(self):
+            self.conn.request('GET', '/api/decks', headers=self.headers)
+            resp = self.conn.getresponse().read()
+            response = json.loads(resp)
+            print(response)
+            self.assertEqual(response["status"], 200)
+
+        
+        def get_unseen(self):
+            self.conn.request('GET', '/api/unseen', headers=self.headers)
+            resp = self.conn.getresponse().read()
+            response = json.loads(resp)
+            print(response)
+            self.assertEqual(response["status"], 200)
+
+        def post_deck(self):
+            self.conn.request('POST', '/api/decks', json.dumps({}), headers=self.headers)
+            resp = self.conn.getresponse().read()
+            response = json.loads(resp)
+            print(response)
+            self.assertEqual(response["status"], 200)
+        
+        def tearDown(self):
+            self.conn.close()
 
 
+    suite = unittest.TestSuite()
+    suite.addTest(TestConnection("get_decks"))
+    suite.addTest(TestConnection("get_unseen"))
+    suite.addTest(TestConnection("post_deck"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
 
 def scrape_sites(): 
     dS = DeckScraper()
 
     try:
         headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection('localhost:8080')
-        conn.request('GET', '/api/deck/', headers=headers)
+        conn = http.client.HTTPConnection(host, port)
+        conn.request('GET', '/api/decks', headers=headers)
         resp = conn.getresponse().read()
         response = json.loads(resp)
         seen = []
