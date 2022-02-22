@@ -1,10 +1,10 @@
-import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys, copy
-import unittest
+import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys, copy, requests
 import numpy as np
 
 from lib.deckScraper import DeckScraper
 from lib.cardVectorizor import Vectorizor
 from lib.log import Log
+from lib.tests.TestConnections import ConnectionSuite
 
 from sklearn.manifold import TSNE, SpectralEmbedding, MDS
 from sklearn.decomposition import PCA
@@ -17,60 +17,24 @@ log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
-host = config("HOST")
-port = int(config("PORT"))
+endpoint = config("HOST")
 
 def test_connection():
-    class TestConnection(unittest.TestCase):
-        def setUp(self):
-            self.headers = {'Content-type': 'application/json'}
-            self.conn = http.client.HTTPConnection(host, port)
-
-        def get_decks(self):
-            self.conn.request('GET', '/api/decks', headers=self.headers)
-            resp = self.conn.getresponse().read()
-            response = json.loads(resp)
-            print(response)
-            self.assertEqual(response["status"], 200)
-
-        
-        def get_unseen(self):
-            self.conn.request('GET', '/api/unseen', headers=self.headers)
-            resp = self.conn.getresponse().read()
-            response = json.loads(resp)
-            print(response)
-            self.assertEqual(response["status"], 200)
-
-        def post_deck(self):
-            self.conn.request('POST', '/api/decks', json.dumps({}), headers=self.headers)
-            resp = self.conn.getresponse().read()
-            response = json.loads(resp)
-            print(response)
-            self.assertEqual(response["status"], 200)
-        
-        def tearDown(self):
-            self.conn.close()
-
-
-    suite = unittest.TestSuite()
-    suite.addTest(TestConnection("get_decks"))
-    suite.addTest(TestConnection("get_unseen"))
-    suite.addTest(TestConnection("post_deck"))
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    ConnectionSuite()
 
 def scrape_sites(): 
     dS = DeckScraper()
 
     try:
         headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection(host, port)
-        conn.request('GET', '/api/decks', headers=headers)
-        resp = conn.getresponse().read()
-        response = json.loads(resp)
+        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+        token = json.loads(resp.text)["id_token"]
+        headers["Authorization"] = "Bearer " + token
+        resp = requests.get(endpoint + "/api/decks", headers=headers)
         seen = []
         print(resp)
-        if response["status"] == 200 :
+        if resp.status_code == 200 :
+            response = json.loads(resp.text)
             seen = [x["url"] for x in response]
         dS.seen = seen
 
@@ -157,22 +121,19 @@ def buildNewCardDB():
         v = Vectorizor(4)
         v.load_training_sequence(True)
         v.build_clean_array(True)
-        playsound('./models/cheer.wav')
     except Exception as e: 
+        print(e)
         traceback.print_exc()
-        playsound('./models/fart.wav')
 
 def vectorizeCards():
     log(1, "Vectorizing Cards")
-    model_dimensionality = 4
+    model_dimensionality = 2 #TODO: Change back to 4
     try:
         v = Vectorizor(model_dimensionality)
         v.load_training_sequence(False)
         v.graph_cards(True)
-        playsound('./models/cheer.wav')
     except Exception as e: 
         traceback.print_exc()
-        playsound('./models/fart.wav')
 
 
 if __name__ == "__main__":

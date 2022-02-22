@@ -1,4 +1,4 @@
-import json, math, pickle, re, time, copy, random, csv, gc, os
+import json, math, pickle, re, time, copy, random, csv, gc, os, requests
 import http.client
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
@@ -9,6 +9,9 @@ from sklearn import preprocessing
 from matplotlib import pyplot
 from .log import Log
 import os
+from decouple import config
+
+endpoint = config("HOST")
 
 log = Log("CARD VECTORIZOR", 0).log
 
@@ -29,14 +32,15 @@ class Vectorizor:
     def load_training_sequence(self, clean=False):
         try:
             obj = pickle.load( open( self.training_model_path, "rb" ) )
-        except:
+        except Exception as e: 
+            print(e)
             self.get_cards_from_json()
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         if clean: 
             log(0, "Cleaning Training Model")
-            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
-            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
-            self.model = Doc2Vec(vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
+            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=1, ns_exponent=.75) #TODO Change epochs back to 40
+            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=1, ns_exponent=.75) #TODO Change epochs back to 40
+            self.model = Doc2Vec(vector_size=52, min_count=1, epochs=1, ns_exponent=.75)  #TODO Change epochs back to 40
         else:
             try:
                 self.twodmodel = Doc2Vec.load(self.twod_model_path) 
@@ -104,7 +108,10 @@ class Vectorizor:
 
         for entry in data:
             c = Card(entry)
-            c.card_type = c.get_card_type(self.twodmodel)
+            try:
+                c.cardType = c.get_cardType(self.twodmodel)
+            except:
+                pass
             card_array.append(c)
             count += 1
             obj += c.tokenize_text()
@@ -144,7 +151,7 @@ class Vectorizor:
         std = np.std(first_pass)
 
         for c in cards:
-            card_values.append([c.card_type[0], c.card_type[1], c.get_color_identity(mean, std), c.get_cmc(mean, std), \
+            card_values.append([c.cardType[0], c.cardType[1], c.get_colorIdentity(mean, std), c.get_cmc(mean, std), \
             c.get_toughness(mean, std), c.get_power(mean, std)])
         
         card_values = np.array(card_values)
@@ -185,11 +192,15 @@ class Vectorizor:
             hexVal = c.generate_color_hex()
             ret.append([name, hexVal] + result[i].tolist())
         
+
         if (save_to_db):
             body = json.dumps(save_arr)
-            headers = {'Content-type': 'application/json'}
-            conn = http.client.HTTPConnection('localhost:8000')
-            conn.request('POST', '/api/card_vector/', body, headers)
+            
+            #headers = {'Content-type': 'application/json'}
+            #resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+            #token = json.loads(resp.text)["id_token"]
+            #headers["Authorization"] = "Bearer " + token
+            #resp = requests.post(endpoint + "/api/cards", body, headers=headers)
         
         dirname = os.path.dirname(__file__)
         path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
@@ -208,32 +219,41 @@ class Vectorizor:
         seen = {}
         seen_arr = []
 
-        headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
-        conn = http.client.HTTPConnection('localhost:8000')
-        conn.request('GET', '/api/cards/', headers=headers)
+        headers = {'Content-type': 'application/json'}
+        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+        token = json.loads(resp.text)["id_token"]
+        headers["Authorization"] = "Bearer " + token
+        resp = requests.get(endpoint + "/api/cards", headers=headers)
 
-        response = json.loads(conn.getresponse().read())
-        conn.close()
-        
+        response = json.loads(resp.text)
         for card in response:
             c = Card()
             c.build_from_server(card)
             key = c.name
             seen[key] = None
 
-        card_array = self.get_cards_from_json()
+        card_array = self.get_cards_from_json(True, True, True)
 
         log(0, "Cleaning Card Array")
+        arr = []
         for t in card_array: 
             key = t.name
-            
             tokens = t.tokenize_text()
             t.simple_vec = self.multimodel.infer_vector(tokens)
             t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
             if (key not in seen):
-                if save_to_db:
-                    t.save_to_db()
+                arr.append(t)
             seen[key] = t
+        
+        print("====", len(arr))
+        if save_to_db:
+            headers = {'Content-type': 'application/json'}
+            resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+            token = json.loads(resp.text)["id_token"]
+            headers["Authorization"] = "Bearer " + token
+
+            body = [x.get_db_value() for x in arr]
+            resp = requests.post(endpoint + "/api/cards/bulk", json.dumps(body), headers=headers)
         return [x for x in list(seen.values()) if x != None]
 
 
@@ -257,19 +277,19 @@ class Card:
     id = 0
     multiverse_id = 0
     name = ''
-    card_type = ''
+    cardType = ''
     rarity = ''
     cmc = 0
-    toughness = '~'
-    power = '~'
-    color_identity = ''
+    toughness = '-1'
+    power = '-1'
+    colorIdentity = ''
     text = ''
     simple_vec = []
     long_vec = []
 
     def __str__(self):
-        return self.name + " - " + str(self.id) + ": " + str(self.card_type) + "\n" + \
-            str(self.rarity) + ", " + str(self.cmc) + "\n" + str(self.color_identity) + " " + \
+        return "Name" + self.name + " - " + str(self.id) + ": type" + str(self.cardType) + "\n" + \
+            "rarity" + str(self.rarity) + ", cmc" + str(self.cmc) + "\n color" + str(self.colorIdentity) + " " + \
             str(self.power) + "/" + str(self.toughness)
 
     def __init__(self, json_info=None):
@@ -287,18 +307,18 @@ class Card:
                 self.toughness = "~"
             if 'oracle_text' in json_info:
                 self.text = json_info['oracle_text']
-            self.card_type = json_info['type_line'].split("—")[0].strip()
+            self.cardType = json_info['type_line'].split("—")[0].strip()
             rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3, 'special': 4, 'bonus' : 5}
             self.rarity = rarity[json_info['rarity'].strip().lower()]
             self.cmc = int(json_info['cmc'])
-            self.generate_color_identity(json_info['color_identity'])
+            self.generate_colorIdentity(json_info['color_identity'])
 
     def build_from_server(self, info):
         self.id = info['id']
         self.name = info['name']
 
-    def get_card_type(self, model):
-        tokens = self.card_type.lower().split()
+    def get_cardType(self, model):
+        tokens = self.cardType.lower().split()
         return model.infer_vector(tokens)
 
     def get_toughness(self, mean=1, std=1):
@@ -310,7 +330,10 @@ class Card:
         elif self.toughness == '*':
             toughness = math.floor(self.cmc + (self.rarity / 2))
         else:
-            toughness = -2
+            try:
+                toughness = int(self.toughness)
+            except:
+                toughness = -2
         if (int(toughness) > 20):
             toughness = 20
         return (int(toughness) * mean) / std
@@ -324,7 +347,10 @@ class Card:
         elif self.power == '*':
             power = math.floor(self.cmc + (self.rarity / 2))
         else:
-            power = -2
+            try:
+                power = int(self.power)
+            except:
+                power = -2
         if (int(power) > 20):
             power = 20
         return (int(power) * mean) / std
@@ -332,8 +358,8 @@ class Card:
     def get_rarity(self, mean=1, std=1):
         return (self.rarity * mean) / std
 
-    def get_color_identity(self, mean=1, std=1):
-        return (self.color_identity * mean) / std
+    def get_colorIdentity(self, mean=1, std=1):
+        return (self.colorIdentity * mean) / std
 
     def get_cmc(self, mean=1, std=1):
         if (self.cmc > 20):
@@ -341,21 +367,21 @@ class Card:
         else:
             return (self.cmc * mean) / std
 
-    def generate_color_identity(self, color_array):
+    def generate_colorIdentity(self, color_array):
         if len(color_array) == 0:
-            self.color_identity = 0
+            self.colorIdentity = 0
         else:
-            color_identity = ''
+            colorIdentity = ''
             if ('R' in color_array):
-                color_identity += 'R'
+                colorIdentity += 'R'
             if ('U' in color_array):
-                color_identity += 'U'
+                colorIdentity += 'U'
             if ('G' in color_array):
-                color_identity += 'G'
+                colorIdentity += 'G'
             if ('B' in color_array):
-                color_identity += 'B'
+                colorIdentity += 'B'
             if ('W' in color_array):
-                color_identity += 'W'
+                colorIdentity += 'W'
 
             choices = {'C': 0, 'R': 1, 'U': 2, 'G': 3, \
             'B': 4, 'W': 5, 'RU': 6, 'RG': 7, 'RB': 8, \
@@ -365,21 +391,21 @@ class Card:
             'UGB': 22, 'UGW': 23, 'UBW': 24, 'GBW': 25, \
             'RUGB': 26, 'RUGW': 27, 'RUBW': 28, 'RGBW': 29, \
             'UGBW': 30, 'RUGBW': 31}
-            self.color_identity = choices[color_identity]
+            self.colorIdentity = choices[colorIdentity]
 
     def generate_color_hex(self):
         color = "#777777"
-        if (self.color_identity > 5): #Multicolor Gold
+        if (self.colorIdentity > 5): #Multicolor Gold
             color = "#FFD700"
-        elif (self.color_identity == 5): #White
+        elif (self.colorIdentity == 5): #White
             color = "#FFFFFF"
-        elif (self.color_identity == 4): #Black
+        elif (self.colorIdentity == 4): #Black
             color = "#000000"
-        elif (self.color_identity == 3): #Green
+        elif (self.colorIdentity == 3): #Green
             color = "#008000"
-        elif (self.color_identity == 2): #Blue
+        elif (self.colorIdentity == 2): #Blue
             color = "#0000FF"
-        elif (self.color_identity == 1): #Red
+        elif (self.colorIdentity == 1): #Red
             color = "#FF0000"
         return color
 
@@ -401,11 +427,29 @@ class Card:
             d.pop('simple_vec')
         if 'long_vec' in d:
             d.pop('long_vec')
-        d['card_type'] = float(self.card_type[0] + self.card_type[1])
+        d['cardType'] = float(self.cardType[0] + self.cardType[1])
         
         body = json.dumps(d)
-        conn = http.client.HTTPConnection('localhost:8000')
-        conn.request('PUT', '/api/cards/', body, headers)
+        print(d)
+        headers = {'Content-type': 'application/json'}
+        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+        token = json.loads(resp.text)["id_token"]
+        headers["Authorization"] = "Bearer " + token
+        resp = requests.post(endpoint + "/api/cards", body, headers=headers) #TODO: Change to bulk put
+
+    def get_db_value(self):
+        d = copy.deepcopy(self.__dict__) 
+        if 'text' in d:
+            d.pop('text') 
+        if 'simple_vec' in d:
+            d.pop('simple_vec')
+        if 'long_vec' in d:
+            d.pop('long_vec')
+        d["power"] = self.get_power()
+        d["toughness"] = self.get_toughness()
+        d['cardType'] = float(self.cardType[0] + self.cardType[1])
+        
+        return json.loads(json.dumps(d))
 
     def save_decomp_res(self, alg, x, y, dimension):
         ret = {

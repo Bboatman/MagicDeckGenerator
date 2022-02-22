@@ -8,7 +8,6 @@ import http.client
 from decouple import config
 
 host = config("HOST")
-port = int(config("PORT"))
 
 log = Log("DECK SCRAPER", 0).log
 
@@ -59,12 +58,14 @@ class DeckScraper:
     def primeFromDB(self):
         response = []
         try:
-            headers = {'Content-type': 'application/json', "Connection": "keep-alive"}
-            conn = http.client.HTTPConnection(host, port)
-            conn.request('GET', '/api/unseen/', headers=headers)
-
-            response = json.loads(conn.getresponse().read())
-            conn.close()
+            # TODO: Fix so this is generified to a service https://github.com/Bboatman/MagicDeckGenerator/issues/6
+            headers = {'Content-type': 'application/json'}
+            print(requests)
+            resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+            token = json.loads(resp.text)["id_token"]
+            headers["Authorization"] = "Bearer " + token
+            resp = requests.get(host + "/api/unseen", headers=self.headers)
+            response = json.loads(resp.text)
         except:
             print("Issue connecting to the database")
 
@@ -221,19 +222,18 @@ class DeckScraper:
         body = deck.build_for_db()
         # TODO: Move all logic to back end for bulk update
         headers = {'Content-type': 'application/json'}
-        conn = http.client.HTTPConnection(host, port)
-        conn.request('POST', '/api/deck/', json.dumps(body), headers)
-        resp = conn.getresponse().read()
-        conn.close()
+        resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+        token = json.loads(resp.text)["id_token"]
+        headers["Authorization"] = "Bearer " + token
         response = json.loads(resp)
-        deck_id =response['id']
-        deck_size = body["deck_size"]
-        for member in deck.deckMembers:
-            ret = member.build_for_db(deck_id, deck_size)
-            req = http.client.HTTPConnection(host, port)
-            req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
-            req.close()
-            time.sleep(.1)
+        # deck_id = response['id']
+        # deck_size = body["deck_size"]
+        # for member in deck.deckMembers:
+        #    ret = member.build_for_db(deck_id, deck_size)
+        #    req = http.client.HTTPConnection(host, port)
+        #    req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
+        #    req.close()
+        #    time.sleep(.1)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
