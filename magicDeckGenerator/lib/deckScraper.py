@@ -7,7 +7,11 @@ from importlib import import_module
 import http.client
 from decouple import config
 
-host = config("HOST")
+host = config("HOST") 
+headers = {'Content-type': 'application/json'}
+resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+token = json.loads(resp.text)["id_token"]
+headers["Authorization"] = "Bearer " + token
 
 log = Log("DECK SCRAPER", 0).log
 
@@ -59,11 +63,6 @@ class DeckScraper:
         response = []
         try:
             # TODO: Fix so this is generified to a service https://github.com/Bboatman/MagicDeckGenerator/issues/6
-            headers = {'Content-type': 'application/json'}
-            print(requests)
-            resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-            token = json.loads(resp.text)["id_token"]
-            headers["Authorization"] = "Bearer " + token
             resp = requests.get(host + "/api/unseen", headers=self.headers)
             response = json.loads(resp.text)
         except:
@@ -220,20 +219,7 @@ class DeckScraper:
 
     def saveToDB(self, deck):
         body = deck.build_for_db()
-        # TODO: Move all logic to back end for bulk update
-        headers = {'Content-type': 'application/json'}
-        resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-        token = json.loads(resp.text)["id_token"]
-        headers["Authorization"] = "Bearer " + token
-        response = json.loads(resp)
-        # deck_id = response['id']
-        # deck_size = body["deck_size"]
-        # for member in deck.deckMembers:
-        #    ret = member.build_for_db(deck_id, deck_size)
-        #    req = http.client.HTTPConnection(host, port)
-        #    req.request('POST', '/api/deck_detail/', json.dumps(ret), headers)
-        #    req.close()
-        #    time.sleep(.1)
+        print(body)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link

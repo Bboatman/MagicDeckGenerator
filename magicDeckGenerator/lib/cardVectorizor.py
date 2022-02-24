@@ -12,8 +12,12 @@ import os
 from decouple import config
 
 endpoint = config("HOST")
-
 log = Log("CARD VECTORIZOR", 0).log
+headers = {'Content-type': 'application/json'}
+resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
+token = json.loads(resp.text)["id_token"]
+headers["Authorization"] = "Bearer " + token
+
 
 class Vectorizor:
     def __init__(self, model_dimensionality = 5):
@@ -195,12 +199,6 @@ class Vectorizor:
 
         if (save_to_db):
             body = json.dumps(save_arr)
-            
-            #headers = {'Content-type': 'application/json'}
-            #resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-            #token = json.loads(resp.text)["id_token"]
-            #headers["Authorization"] = "Bearer " + token
-            #resp = requests.post(endpoint + "/api/cards", body, headers=headers)
         
         dirname = os.path.dirname(__file__)
         path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
@@ -218,11 +216,6 @@ class Vectorizor:
     def build_clean_array(self, save_to_db):
         seen = {}
         seen_arr = []
-
-        headers = {'Content-type': 'application/json'}
-        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-        token = json.loads(resp.text)["id_token"]
-        headers["Authorization"] = "Bearer " + token
         resp = requests.get(endpoint + "/api/cards", headers=headers)
 
         response = json.loads(resp.text)
@@ -247,11 +240,6 @@ class Vectorizor:
         
         print("====", len(arr))
         if save_to_db:
-            headers = {'Content-type': 'application/json'}
-            resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-            token = json.loads(resp.text)["id_token"]
-            headers["Authorization"] = "Bearer " + token
-
             body = [x.get_db_value() for x in arr]
             resp = requests.post(endpoint + "/api/cards/bulk", json.dumps(body), headers=headers)
         return [x for x in list(seen.values()) if x != None]
@@ -430,12 +418,7 @@ class Card:
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
         
         body = json.dumps(d)
-        print(d)
-        headers = {'Content-type': 'application/json'}
-        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-        token = json.loads(resp.text)["id_token"]
-        headers["Authorization"] = "Bearer " + token
-        resp = requests.post(endpoint + "/api/cards", body, headers=headers) #TODO: Change to bulk put
+        resp = requests.post(endpoint + "/api/cards", body, headers=headers)
 
     def get_db_value(self):
         d = copy.deepcopy(self.__dict__) 
