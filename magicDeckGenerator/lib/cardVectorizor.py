@@ -238,7 +238,8 @@ class Vectorizor:
         print("====", len(arr))
         if save_to_db:
             body = [x.get_db_value() for x in arr]
-            self.service.post_bulk_cards(body)
+            if (len(body) > 0):
+                self.service.post_bulk_cards(body)
         return [x for x in list(seen.values()) if x != None]
 
 

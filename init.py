@@ -43,11 +43,10 @@ from requests import get
 
 
 url = 'https://api.scryfall.com/bulk-data/oracle-cards' 
-if (args.loadCards):
-    print('Beginning file download with urllib2...')
-    try:
-        resp = get(url)
-        downloadLoc = json.loads(resp.text)["download_uri"]
-        urllib.request.urlretrieve(downloadLoc, path + "/scryfall-default-cards.json")  
-    except:
-        print("Issue connecting to card ref download") 
+print('Beginning file download with urllib2...')
+try:
+    resp = get(url)
+    downloadLoc = json.loads(resp.text)["download_uri"]
+    urllib.request.urlretrieve(downloadLoc, path + "/scryfall-default-cards.json")  
+except:
+    print("Issue connecting to card ref download") 
