@@ -13,28 +13,27 @@ from gensim.utils import simple_preprocess
 from playsound import playsound
 from decouple import config
 
+from lib.service import DeckService
+
 log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
-endpoint = config("HOST")
 
 def test_connection():
     ConnectionSuite()
 
 def scrape_sites(): 
     dS = DeckScraper()
+    service = DeckService()
 
     try:
         headers = {'Content-type': 'application/json'}
-        resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-        token = json.loads(resp.text)["id_token"]
-        headers["Authorization"] = "Bearer " + token
-        resp = requests.get(endpoint + "/api/decks", headers=headers)
+        resp = service.get_decks()
         seen = []
         print(resp)
-        if resp.status_code == 200 :
-            response = json.loads(resp.text)
+        if resp["status_code"] == 200 :
+            response = resp["body"]
             seen = [x["url"] for x in response]
         dS.seen = seen
 

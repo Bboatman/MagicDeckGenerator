@@ -2,16 +2,11 @@
 import json, re, random, time, urllib.parse, pickle, requests
 from .scraper import Scraper
 from .log import Log
+from .service import DeckService
 from bs4 import BeautifulSoup
 from importlib import import_module
 import http.client
 from decouple import config
-
-host = config("HOST") 
-headers = {'Content-type': 'application/json'}
-resp = requests.post(host + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-token = json.loads(resp.text)["id_token"]
-headers["Authorization"] = "Bearer " + token
 
 log = Log("DECK SCRAPER", 0).log
 
@@ -34,6 +29,7 @@ class DeckScraper:
         self.start_urls = urls
         self.to_scrape = []
         self.seen = []
+        self.service = DeckService()
 
     def prime(self):
         pickle.dump( {"to_scrape": []}, open( "./models/pickledLinks.p", "wb" ) )
@@ -63,8 +59,8 @@ class DeckScraper:
         response = []
         try:
             # TODO: Fix so this is generified to a service https://github.com/Bboatman/MagicDeckGenerator/issues/6
-            resp = requests.get(host + "/api/unseen", headers=self.headers)
-            response = json.loads(resp.text)
+            resp = self.service.get_unseen()
+            response = json.loads(resp["body"])
         except:
             print("Issue connecting to the database")
 

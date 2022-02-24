@@ -1,4 +1,4 @@
-import json, math, pickle, re, time, copy, random, csv, gc, os, requests
+import json, math, pickle, re, time, copy, random, csv, gc, os
 import http.client
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
@@ -8,15 +8,11 @@ from sklearn.decomposition import PCA
 from sklearn import preprocessing
 from matplotlib import pyplot
 from .log import Log
+from .service import DeckService
 import os
 from decouple import config
 
-endpoint = config("HOST")
 log = Log("CARD VECTORIZOR", 0).log
-headers = {'Content-type': 'application/json'}
-resp = requests.post(endpoint + "/api/authenticate", data=json.dumps({"username": "admin", "password": "admin"}), headers=headers)
-token = json.loads(resp.text)["id_token"]
-headers["Authorization"] = "Bearer " + token
 
 
 class Vectorizor:
@@ -32,6 +28,7 @@ class Vectorizor:
         self.training_model_path = os.path.join(dirname,"../models/training_seq.p")
         self.card_data_path = os.path.join(dirname,"../models/card_data.p")
         self.train_seq = []
+        self.service = DeckService()
         
     def load_training_sequence(self, clean=False):
         try:
@@ -216,9 +213,9 @@ class Vectorizor:
     def build_clean_array(self, save_to_db):
         seen = {}
         seen_arr = []
-        resp = requests.get(endpoint + "/api/cards", headers=headers)
+        resp = self.service.get_cards()
 
-        response = json.loads(resp.text)
+        response = resp["body"]
         for card in response:
             c = Card()
             c.build_from_server(card)
@@ -241,7 +238,7 @@ class Vectorizor:
         print("====", len(arr))
         if save_to_db:
             body = [x.get_db_value() for x in arr]
-            resp = requests.post(endpoint + "/api/cards/bulk", json.dumps(body), headers=headers)
+            self.service.post_bulk_cards(body)
         return [x for x in list(seen.values()) if x != None]
 
 
@@ -406,7 +403,7 @@ class Card:
         tokens = filter(None, tokens)
         return tokens
 
-    def save_to_db(self):
+    def save_to_db(self, service):
         headers = {'Content-type': 'application/json'}
         d = copy.deepcopy(self.__dict__) 
         if 'text' in d:
@@ -418,7 +415,7 @@ class Card:
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
         
         body = json.dumps(d)
-        resp = requests.post(endpoint + "/api/cards", body, headers=headers)
+        resp = service.post_card(body)
 
     def get_db_value(self):
         d = copy.deepcopy(self.__dict__) 
