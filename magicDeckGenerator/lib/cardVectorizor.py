@@ -86,7 +86,7 @@ class Vectorizor:
         self.model.save(self.word2vec_model_path)
         self.twodmodel.save(self.twod_model_path)
         self.multimodel.save(self.model_dimensionality_path)
-
+        
     def get_cards_from_json(self, update_training_model= False, \
         write_to_db = False, progress_print = False):
         log(0, "Getting cards from JSON")
@@ -196,6 +196,7 @@ class Vectorizor:
 
         if (save_to_db):
             body = json.dumps(save_arr)
+            print(save_arr[0])
         
         dirname = os.path.dirname(__file__)
         path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
@@ -212,7 +213,7 @@ class Vectorizor:
     
     def build_clean_array(self, save_to_db):
         seen = {}
-        seen_arr = []
+        to_create_array = []
         resp = self.service.get_cards()
 
         response = resp["body"]
@@ -220,26 +221,32 @@ class Vectorizor:
             c = Card()
             c.build_from_server(card)
             key = c.name
-            seen[key] = None
-
+            seen[key] = c
+            
         card_array = self.get_cards_from_json(True, True, True)
 
         log(0, "Cleaning Card Array")
-        arr = []
         for t in card_array: 
             key = t.name
-            tokens = t.tokenize_text()
-            t.simple_vec = self.multimodel.infer_vector(tokens)
-            t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
             if (key not in seen):
-                arr.append(t)
-            seen[key] = t
+                tokens = t.tokenize_text()
+                t.simple_vec = self.multimodel.infer_vector(tokens)
+                t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
+                to_create_array.append(t)
+                print(t)
+                seen[key] = t
         
-        print("====", len(arr))
-        if save_to_db:
-            body = [x.get_db_value() for x in arr]
+        if len(to_create_array) > 0:
+            body = [x.get_db_value() for x in to_create_array]
             if (len(body) > 0):
-                self.service.post_bulk_cards(body)
+                save_response = self.service.post_bulk_cards(body)
+                print("==== SAVING NEW CARDS ====")
+                for new_card in save_response['body']:
+                    c = Card()
+                    c.build_from_server(new_card)
+                    key = c.name
+                    seen[key] = c
+        print(seen["static orb"])
         return [x for x in list(seen.values()) if x != None]
 
 
@@ -274,8 +281,8 @@ class Card:
     long_vec = []
 
     def __str__(self):
-        return "Name" + self.name + " - " + str(self.id) + ": type" + str(self.cardType) + "\n" + \
-            "rarity" + str(self.rarity) + ", cmc" + str(self.cmc) + "\n color" + str(self.colorIdentity) + " " + \
+        return "Name " + self.name + " - " + str(self.id) + ": type " + str(self.cardType) + "\n" + \
+            "rarity " + str(self.rarity) + ", cmc" + str(self.cmc) + "\n color" + str(self.colorIdentity) + " " + \
             str(self.power) + "/" + str(self.toughness)
 
     def __init__(self, json_info=None):

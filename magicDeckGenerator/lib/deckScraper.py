@@ -70,11 +70,7 @@ class DeckScraper:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
 
-
         log(0, self.to_scrape)
-        #log(1, f"Total tappedOut to scrape {tCount}")
-        #log(1, f"Total mtgTop8 to scrape {mCount}")
-
         return self.to_scrape
 
 
