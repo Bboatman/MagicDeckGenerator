@@ -30,8 +30,11 @@ class DeckService:
         resp = requests.post(endpoint + "/api/decks", headers=self.headers)
         return {"status_code": resp.status_code}
     
-    def post_bulk_cards(self, card_array):
-        resp = requests.post(endpoint + "/api/cards/bulk", json.dumps(card_array), headers=self.headers)
+    def post_bulk_cards(self, card_array: list):
+        if (card_array[0]["id"]):
+            resp = requests.patch(endpoint + "/api/cards/bulk", json.dumps(card_array), headers=self.headers)
+        else:
+            resp = requests.post(endpoint + "/api/cards/bulk", json.dumps(card_array), headers=self.headers)
         return {"status_code": resp.status_code, "body": json.loads(resp.text)}
     
     def post_card(self, card):

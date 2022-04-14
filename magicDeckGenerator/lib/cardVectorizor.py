@@ -1,22 +1,17 @@
-import json, math, pickle, re, time, copy, random, csv, gc, os
-import http.client
+import json, math, pickle, re, time, copy, gc, os
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
-from sklearn.manifold import TSNE, SpectralEmbedding, MDS
-from sklearn.decomposition import PCA
-from sklearn import preprocessing
-from matplotlib import pyplot
+from sklearn.manifold import TSNE
 from .log import Log
 from .service import DeckService
 import os
-from decouple import config
 
 log = Log("CARD VECTORIZOR", 0).log
 
 
 class Vectorizor:
-    def __init__(self, model_dimensionality = 5):
+    def __init__(self, model_dimensionality: int = 5):
         log(0, "Initializing")
         dirname = os.path.dirname(__file__)
         self.model_dimensionality = model_dimensionality
@@ -30,7 +25,7 @@ class Vectorizor:
         self.train_seq = []
         self.service = DeckService()
         
-    def load_training_sequence(self, clean=False):
+    def load_training_sequence(self, clean: bool =False):
         try:
             obj = pickle.load( open( self.training_model_path, "rb" ) )
         except Exception as e: 
@@ -62,7 +57,7 @@ class Vectorizor:
         if clean:
             self.train_model(True)
 
-    def train_model(self, build = False):
+    def train_model(self, build: bool = False):
         if build: 
             log(0, "Building Vocab")
             self.model.build_vocab(self.train_seq)
@@ -87,8 +82,8 @@ class Vectorizor:
         self.twodmodel.save(self.twod_model_path)
         self.multimodel.save(self.model_dimensionality_path)
         
-    def get_cards_from_json(self, update_training_model= False, \
-        write_to_db = False, progress_print = False):
+    def get_cards_from_json(self, update_training_model: bool = False, \
+        write_to_db: bool = False, progress_print: bool = False):
         log(0, "Getting cards from JSON")
         t = time.time()
         json_file = open(self.card_json_path)
@@ -116,7 +111,7 @@ class Vectorizor:
             card_array.append(c)
             count += 1
             obj += c.tokenize_text()
-            if len(obj)%2000 == 0:
+            if len(obj)%8000 == 0:
                 if (progress_print):
                     log(0, f"{count} Processed")
                 if (update_training_model):
@@ -126,25 +121,12 @@ class Vectorizor:
         log(0, f"Got {len(card_array)} cards in {t} time")
         return card_array
 
-    def decompose_data(self, algorithm, n_components, cards, naive, save_to_db):
+    def decompose_data(self, n_components: int, cards: list, save_to_db: bool):
         t = time.time()
-        if (algorithm == "TSNE"):
-            alg = TSNE(n_components=self.model_dimensionality)
-        elif (algorithm == "MDS"):
-            alg = MDS(n_components=self.model_dimensionality)
-        elif (algorithm == "SpectralEmbeddingNN"):
-            alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="nearest_neighbors")
-        elif (algorithm == "SpectralEmbeddingRBF"):
-            alg = SpectralEmbedding(n_components=self.model_dimensionality, affinity="rbf")
-        else:
-            alg = PCA(n_components=self.model_dimensionality)
+        alg = TSNE(n_components=self.model_dimensionality)
 
-        gc.collect()
-        if not naive:
-            data = [c.long_vec for c in cards]
-            first_pass = alg.fit_transform(np.array(data))
-        else:
-            first_pass = np.array([c.simple_vec for c in cards])
+        data = [c.long_vec for c in cards]
+        first_pass = alg.fit_transform(np.array(data))
         
         log(0, "First Pass Complete")
         card_values = []
@@ -158,48 +140,28 @@ class Vectorizor:
         card_values = np.array(card_values)
         first_pass = np.append(first_pass, card_values, axis=1) 
 
-        if (algorithm == "TSNE"):
-            alg = TSNE(n_components=n_components)
-        elif (algorithm == "MDS"):
-            alg = MDS(n_components=n_components)
-        elif (algorithm == "SpectralEmbeddingNN"):
-            alg = SpectralEmbedding(n_components=n_components, affinity="nearest_neighbors")
-        elif (algorithm == "SpectralEmbeddingRBF"):
-            alg = SpectralEmbedding(n_components=n_components, affinity="rbf")
-        else:
-            alg = PCA(n_components=n_components)
+        alg = TSNE(n_components=n_components)
 
         gc.collect()
-        algname = algorithm
-        try:
-            result = alg.fit_transform(first_pass)
-        except:
-            log(1, "Failed second pass, defaulting to PCA")
-            alg = PCA(n_components=n_components)
-            result = alg.fit_transform(first_pass)
+        log(0, "Starting Second Pass")
+        result = alg.fit_transform(first_pass)
 
         t = time.time() - t
-        log(0, f"Running {algorithm} on {n_components} dimensions, completed in {t} time")
+        log(0, f"Running TSNE on {n_components} dimensions, completed in {t} time")
         ret = []
 
-        if naive:
-            algname = "naive" + algorithm
         save_arr = []
         for i,c in enumerate(cards):
             x, y = result[i].tolist()
-            if (save_to_db):
-                save_arr.append(c.save_decomp_res(algname, x, y, self.model_dimensionality))
+            c.save_decomp_res(x, y)
             name = c.name
             hexVal = c.generate_color_hex()
+            save_arr.append(c)
             ret.append([name, hexVal] + result[i].tolist())
-        
 
         if (save_to_db):
-            body = json.dumps(save_arr)
-            print(save_arr[0])
+            self.bulk_update_and_propogate_changes(cards)
         
-        dirname = os.path.dirname(__file__)
-        path = os.path.join(dirname, algname + str(self.model_dimensionality) + "dGraphPoints.csv")
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -218,56 +180,66 @@ class Vectorizor:
 
         response = resp["body"]
         for card in response:
-            c = Card()
-            c.build_from_server(card)
+            c = Card(card)
             key = c.name
             seen[key] = c
-            
+        print(len(seen))
+        
         card_array = self.get_cards_from_json(True, True, True)
 
         log(0, "Cleaning Card Array")
         for t in card_array: 
             key = t.name
             if (key not in seen):
-                tokens = t.tokenize_text()
-                t.simple_vec = self.multimodel.infer_vector(tokens)
-                t.long_vec = self.model.infer_vector(tokens) # There's something wrong with this??
                 to_create_array.append(t)
                 print(t)
-                seen[key] = t
+            else:
+                existing_card = seen[key]
+                existing_card.text = t.text
+                existing_card.cardType = t.cardType
+                
+            self.generate_text_vector(existing_card, seen)
+            
         
         if len(to_create_array) > 0:
-            body = [x.get_db_value() for x in to_create_array]
-            if (len(body) > 0):
-                save_response = self.service.post_bulk_cards(body)
-                print("==== SAVING NEW CARDS ====")
+            print("Doing Bulk update")
+            seen = self.bulk_update_and_propogate_changes(to_create_array, seen)
+            
+        ret = [x for x in list(seen.values()) if x != None]
+        print(ret[0])
+        return ret
+
+    def bulk_update_and_propogate_changes(self, to_create_array: list, master_obj={}):
+        body = [x.get_db_value() for x in to_create_array]
+        if (len(body) > 0):
+            print("Bulk update", body[0])
+            save_response = self.service.post_bulk_cards(body)
+            print(save_response)
+            if (save_response["status_code"] == 201):
+                processed_cards: list = []
                 for new_card in save_response['body']:
-                    c = Card()
-                    c.build_from_server(new_card)
-                    key = c.name
-                    seen[key] = c
-        print(seen["static orb"])
-        return [x for x in list(seen.values()) if x != None]
-
-
+                    c: Card = Card(new_card)
+                    self.generate_text_vector(c, master_obj)
+                    processed_cards.append(c)
+                print(processed_cards)
+                return master_obj
+                
+    def generate_text_vector(self, card, master_obj):
+        key = card.name
+        tokens = card.tokenize_text()
+        card.simple_vec = self.multimodel.infer_vector(tokens)
+        card.long_vec = self.model.infer_vector(tokens)
+        master_obj[key] = card
+        
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
         log(0, "Running Graphing on Data Set")
-        algs = ["PCA", "TSNE", "SpectralEmbeddingRBF"]
-        for alg in algs:
-            try:
-                gc.collect()
-                self.decompose_data(alg, 2, cleaned_array, False, save_to_db)
-                gc.collect()
-                self.decompose_data(alg, 2, cleaned_array, True, save_to_db)
-                log(0, f"{alg} Done")
-            except:
-                log(2, f"{alg} Failed")
+        self.decompose_data(2, cleaned_array, save_to_db)
+            
 
 class Card:
     delimiters = "\n", ".", ",", ":"
     regexPattern = '|'.join(map(re.escape, delimiters))
-    id = 0
     multiverse_id = 0
     name = ''
     cardType = ''
@@ -300,15 +272,34 @@ class Card:
                 self.toughness = "~"
             if 'oracle_text' in json_info:
                 self.text = json_info['oracle_text']
-            self.cardType = json_info['type_line'].split("—")[0].strip()
-            rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3, 'special': 4, 'bonus' : 5}
-            self.rarity = rarity[json_info['rarity'].strip().lower()]
+            if "type_line" in json_info:
+                self.cardType = json_info['type_line'].split("—")[0].strip()
+            if type(json_info['rarity']) is str:
+                rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3, 'special': 4, 'bonus' : 5}
+                self.rarity = rarity[json_info['rarity'].strip().lower()]
+            elif type(json_info['rarity'] is int):
+                self.rarity = json_info['rarity']
             self.cmc = int(json_info['cmc'])
-            self.generate_colorIdentity(json_info['color_identity'])
-
-    def build_from_server(self, info):
-        self.id = info['id']
-        self.name = info['name']
+            
+            if "id" in json_info:
+                try:
+                    self.id = int(json_info['id'])
+                except: 
+                    self.id = None
+            else: 
+                self.id = None
+            if "x" in json_info:
+                self.x = json_info["x"]
+            else: 
+                self.x = None
+            if "y" in json_info:
+                self.y = json_info["y"]
+            else: 
+                self.y = None
+            if "color_identity" in json_info:
+                self.generate_colorIdentity(json_info['color_identity'])
+            elif "colorIdentity" in json_info:
+                self.colorIdentity = json_info['colorIdentity']
 
     def get_cardType(self, model):
         tokens = self.cardType.lower().split()
@@ -423,7 +414,7 @@ class Card:
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
         
         body = json.dumps(d)
-        resp = service.post_card(body)
+        service.post_card(body)
 
     def get_db_value(self):
         d = copy.deepcopy(self.__dict__) 
@@ -433,19 +424,14 @@ class Card:
             d.pop('simple_vec')
         if 'long_vec' in d:
             d.pop('long_vec')
+        if d["id"] is None:
+            d.pop('id')
         d["power"] = self.get_power()
         d["toughness"] = self.get_toughness()
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
         
         return json.loads(json.dumps(d))
 
-    def save_decomp_res(self, alg, x, y, dimension):
-        ret = {
-            "x_value": x,
-            "y_value": y,
-            "algorithm": alg
-        }
-        ret["alg_weight"] = dimension
-        ret["card"] = self.name
-
-        return ret
+    def save_decomp_res(self, x, y):
+        self.x = x
+        self.y = y

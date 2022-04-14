@@ -1,17 +1,9 @@
-import pickle, random, gc, csv, time, traceback, http.client, json, threading, sys, copy, requests
-import numpy as np
+import pickle, random, traceback, threading, sys, copy
 
 from lib.deckScraper import DeckScraper
 from lib.cardVectorizor import Vectorizor
 from lib.log import Log
 from lib.tests.TestConnections import ConnectionSuite
-
-from sklearn.manifold import TSNE, SpectralEmbedding, MDS
-from sklearn.decomposition import PCA
-
-from gensim.utils import simple_preprocess
-from playsound import playsound
-from decouple import config
 
 from lib.service import DeckService
 
