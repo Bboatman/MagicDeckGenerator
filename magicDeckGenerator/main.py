@@ -20,43 +20,17 @@ def scrape_sites():
     service = DeckService()
 
     try:
-        headers = {'Content-type': 'application/json'}
         resp = service.get_decks()
         seen = []
-        print(resp)
         if resp["status_code"] == 200 :
             response = resp["body"]
             seen = [x["url"] for x in response]
         dS.seen = seen
 
-        if prime:
-            if (rebuild):
-                dS.prime()
-                dS.build()
-            else:
-                # Builds scraping links by searching for decks with unmatched cards on tappedOut and top8
-                poss_links = dS.primeFromDB()
-                if len(poss_links) == 0:
-                    dS.prime()
-                    dS.build()
-        else:
-            obj = pickle.load( open( "./models/pickledLinks.p", "rb" ) )
-            poss_links = obj["to_scrape"]
-        
-        
-       
-        random.shuffle(poss_links)
+        poss_links = dS.primeFromDB()
 
-        if len(poss_links) > 0:
-            random.shuffle(poss_links)
-            dS.to_scrape = poss_links
-            #dS.to_scrape = [] #Uncomment to clean scraping array
-            #dS.build() #Uncomment to clean scraping array
-            log(1, f"Ingesting {len(dS.to_scrape)} links")
-        else:
-            log(1, f"Building new scrape model")
-            tried = 0
-            dS.build()
+        random.shuffle(poss_links)
+        log(1, f"Ingesting {len(dS.to_scrape)} links")
 
         log(1, f"Scraping {len(dS.to_scrape)} initially")
         startCount = copy.deepcopy(len(dS.seen)) 
@@ -73,7 +47,7 @@ def scrape_sites():
             seen = copy.deepcopy(dS.seen)
             threads = list()
             log(1, f"Seen {len(dS.seen)} links")
-            for index in range(3):
+            for index in range(1): #Threading doesn't play nicely with transactional db updates
                 lock = threading.Lock()
                 x = threading.Thread(target=thread_function, args=(index,dS,lock,))
                 threads.append(x)
@@ -87,7 +61,6 @@ def scrape_sites():
 
             if (len(dS.to_scrape) < 5) and prime:
                 log(1, f"Scraped {totalSeen} links")
-                processed = 0
                 poss_links = dS.primeFromDB()
                 log(1, f"Scraping {len(dS.to_scrape)} initially")
                 if len(poss_links) > 0:

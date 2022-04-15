@@ -24,10 +24,13 @@ class DeckService:
     
     def get_unseen(self):
         resp = requests.get(endpoint + "/api/unseen", headers=self.headers)
-        return {"status_code": resp.status_code, "body": json.loads(resp.text)}
+        body = json.loads(resp.text)
+        print("=====")
+        print(len(body))
+        return {"status_code": resp.status_code, "body": body}
 
-    def post_deck(self):
-        resp = requests.post(endpoint + "/api/decks", headers=self.headers)
+    def post_deck(self, deck):
+        resp = requests.post(endpoint + "/api/decks", json.dumps(deck), headers=self.headers)
         return {"status_code": resp.status_code}
     
     def post_bulk_cards(self, card_array: list):

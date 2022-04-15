@@ -1,12 +1,12 @@
 
-import json, re, random, time, urllib.parse, pickle, requests
+import json, re, random, urllib.parse, pickle, requests
+from time import sleep
+from multiprocessing.connection import wait
 from .scraper import Scraper
 from .log import Log
 from .service import DeckService
 from bs4 import BeautifulSoup
-from importlib import import_module
-import http.client
-from decouple import config
+import random
 
 log = Log("DECK SCRAPER", 0).log
 
@@ -56,21 +56,21 @@ class DeckScraper:
         log(0, "Done building")
 
     def primeFromDB(self):
-        response = []
+        names = []
         try:
-            # TODO: Fix so this is generified to a service https://github.com/Bboatman/MagicDeckGenerator/issues/6
             resp = self.service.get_unseen()
-            response = json.loads(resp["body"])
+            names = resp["body"]
+            random.shuffle(names)
+            names = names[:2]
+            log(0, "Names: " + str(names))
         except:
             print("Issue connecting to the database")
 
-        names = [x['name'] for x in response]
-        log(1, names)
         for name in names:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
-
-        log(0, self.to_scrape)
+            log(0, self.to_scrape)
+            
         return self.to_scrape
 
 
@@ -89,12 +89,12 @@ class DeckScraper:
         html = BeautifulSoup(raw_html.text, 'html.parser')
         count = 0
         for nlink in html.select('a'):
-                if nlink['href'].find('event?e') >= 0:
-                    added = self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
-                    if added:
-                        count += 1
+            if 'href' in nlink and nlink['href'].find('event?e') >= 0:
+                added = self.add_to_scrape_pool(nlink['href'], 'https://www.mtgtop8.com/')
+                if added:
+                    count += 1
         
-        log(1, f"Found {count} links for {searchStr} in mtgTop8")
+        log(0, f"Found {count} links for {searchStr} in mtgTop8")
 
     def getTappedOutPrime(self, searchStr):
         sanitized = urllib.parse.quote(searchStr)
@@ -112,7 +112,7 @@ class DeckScraper:
                 if added:
                     count += 1
 
-        log(1, f"Found {count} links for {searchStr} in tappedOut")
+        log(0, f"Found {count} links for {searchStr} in tappedOut")
 
     def getMtgTop8Links(self, link):
             url = 'https://www.mtgtop8.com/' + link['href']
@@ -148,12 +148,15 @@ class DeckScraper:
                     deck = self.processMtgTop8(html)
                 else:
                     deck = self.processTappedOut(html)
+                sleep(.5)
 
-            if len(deck) >= 50 and len(deck) <160:
+            log(0, "Deck length: " + str(len(deck)))
+            if len(deck) >= 40 and len(deck) <160:
                 log(1, f"Saving: {url}")
                 deck_obj = Deck(url, url)
                 for member in deck:
                     deck_obj.add_member_to_deck(member)
+                
                 self.saveToDB(deck_obj)
                 random.shuffle(self.to_scrape)
             
@@ -212,6 +215,7 @@ class DeckScraper:
     def saveToDB(self, deck):
         body = deck.build_for_db()
         print(body)
+        self.service.post_deck(body)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
@@ -249,9 +253,8 @@ class DeckMember:
         self.count -= number
 
 
-    def build_for_db(self, deck_id, deck_size):
-        signficance = float(self.count) / float(deck_size)
-        return {"deck": deck_id, "card": self.name, "count": self.count, "significance": signficance}
+    def build_for_db(self):
+        return {"parsedName": self.name, "count": self.count}
 
     def two_face_card_normalizer(self):
         self.name = self.name.replace(" / ", " // ")
@@ -438,10 +441,9 @@ class Deck:
 
     def build_for_db(self):
         deck_size = 0
-        unique_count = len(self.deckMembers)
         for member in self.deckMembers:
             deck_size += int(member.count)
-        return {"deck_size": deck_size, "unique_count": unique_count, "name": self.name, "url": self.url}
+        return {"id": None, "name": self.name, "url": self.url, "cardInstances": [x.build_for_db() for x in self.deckMembers]}
 
 if __name__ == "__main__":
     dS = DeckScraper([])
