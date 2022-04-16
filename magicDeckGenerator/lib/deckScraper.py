@@ -25,12 +25,12 @@ urls = [
     # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
     # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
     # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
-    # {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
-    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
-    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
-    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
-    #{"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
-    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}
 ]
 
@@ -142,16 +142,20 @@ class DeckScraper:
             html = BeautifulSoup(raw_html, 'html.parser')
 
             for nlink in html.find_all('a',  href=True):
+                urlVal = nlink['href']
+                if '&' in nlink['href']:
+                    urlVal = nlink['href'].split('&')[0]
                 if nlink['href'].find('event?e') >= 0:
                     self.add_to_scrape_pool(
-                        nlink['href'], 'https://www.mtgtop8.com/')
+                        urlVal, 'https://www.mtgtop8.com/')
 
     def generate_card_pool(self, lock=None):
         popped = self.to_scrape.pop()
         url = popped["parent"] + popped['url']
         ret = False
 
-        if url in self.seen:
+        # TODO: take this mtgtop8 check out
+        if url in self.seen and 'https://www.mtgtop8.com/' not in popped['parent']:
             log(0, f"Seen: {url}")
             return ret
         else:
@@ -169,7 +173,10 @@ class DeckScraper:
                 html = BeautifulSoup(raw_html, 'html.parser')
                 if popped['parent'] == 'https://www.mtgtop8.com/':
                     deck = self.processMtgTop8(html)
-                    if len(deck) == 0:
+                    if url in self.seen:
+                        log(0, f"Seen: {url}")
+                        return ret
+                    if len(deck) == 0 or url in self.seen:
                         return ret
                 else:
                     deck = self.processTappedOut(html)
@@ -195,7 +202,6 @@ class DeckScraper:
                 name = item.find("span", attrs={"class": "L14"}).contents[0]
                 card_id = 0
                 deck_member = DeckMember(name, card_id, count)
-                print(deck_member)
                 deck.append(deck_member)
         except Exception as e:
             log(0, "Failure to parse cards")
@@ -203,9 +209,17 @@ class DeckScraper:
             return
 
         for nlink in html.find_all('a',  href=True):
-            if nlink['href'].find('event?e') >= 0:
+            boolval = '?e=' in nlink['href']
+            urlVal = nlink['href']
+            if '&' in nlink['href']:
+                urlVal = nlink['href'].split('&')[0]
+
+            parsedVal = 'https://www.mtgtop8.com/event' + urlVal
+            added = []
+            if boolval and parsedVal not in self.seen and parsedVal not in added:
+                added.append(parsedVal)
                 self.add_to_scrape_pool(
-                    nlink['href'], 'https://www.mtgtop8.com/')
+                    "event" + urlVal, 'https://www.mtgtop8.com/')
 
         return deck
 
