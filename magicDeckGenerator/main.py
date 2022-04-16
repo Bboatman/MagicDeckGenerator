@@ -16,6 +16,7 @@ log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
+searchCards = False
 maxDecks = 100
 
 
@@ -35,9 +36,13 @@ def scrape_sites():
             seen = [x["url"] for x in response]
         dS.seen = seen
 
-        poss_links = dS.primeFromDB()
+        if searchCards:
+            poss_links = dS.primeFromDB()
+            random.shuffle(poss_links)
+            dS.to_scrape = poss_links
+        else:
+            dS.build()
 
-        random.shuffle(poss_links)
         log(1, f"Ingesting {len(dS.to_scrape)} links")
 
         log(1, f"Scraping {len(dS.to_scrape)} initially")

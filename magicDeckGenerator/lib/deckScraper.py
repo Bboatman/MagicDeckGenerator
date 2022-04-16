@@ -16,19 +16,21 @@ import random
 log = Log("DECK SCRAPER", 0).log
 searchUnseen = False
 
-urls = [{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
-        {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
-        {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
+# TODO: Make this variable dependant
+urls = [
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
+    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
 
 
 class DeckScraper:
@@ -49,17 +51,19 @@ class DeckScraper:
                 html = BeautifulSoup(raw_html, 'html.parser')
                 if u['parent'].find('tappedout') >= 0:
                     for link in html.select('a'):
-                        if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                            self.add_to_scrape_pool(
-                                link['href'], 'http://tappedout.net')
-                        elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                            self.add_to_scrape_pool(
-                                link['href'], 'http://tappedout.net/')
+                        if 'href' in link:
+                            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
+                                self.add_to_scrape_pool(
+                                    link['href'], 'http://tappedout.net')
+                            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
+                                self.add_to_scrape_pool(
+                                    link['href'], 'http://tappedout.net/')
                 elif u['parent'].find('mtgtop8') >= 0:
                     for link in html.select('a'):
-                        if link['href'].find('archetype') >= 0:
+                        if 'href' in link and link['href'].find('archetype') >= 0:
                             self.getMtgTop8Links(link)
-            except:
+            except Exception as e:
+                raise(e)
                 log(2, f"Unavailable url: {url}")
 
         random.shuffle(self.to_scrape)
@@ -78,7 +82,7 @@ class DeckScraper:
             names = names[:5]
             log(0, "Names: " + str(names))
         except:
-            print("Issue connecting to the database")
+            log(0, "Issue connecting to the database")
 
         for name in names:
             self.getMtgTop8Prime(name)
