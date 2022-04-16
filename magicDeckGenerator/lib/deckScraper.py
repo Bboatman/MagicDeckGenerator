@@ -159,13 +159,6 @@ class DeckScraper:
             log(0, f"Seen: {url}")
             return ret
         else:
-            if (lock != None):
-                lock.acquire()
-                self.seen.append(url)
-                lock.release()
-            else:
-                self.seen.append(url)
-
             raw_html = Scraper(url).simple_get()
             log(0, f"Got: {url}")
             deck = []
@@ -181,6 +174,13 @@ class DeckScraper:
                 else:
                     deck = self.processTappedOut(html)
                 sleep(.5)
+
+            if (lock != None):
+                lock.acquire()
+                self.seen.append(url)
+                lock.release()
+            else:
+                self.seen.append(url)
 
             deck_obj = Deck(url, url)
             for member in deck:
