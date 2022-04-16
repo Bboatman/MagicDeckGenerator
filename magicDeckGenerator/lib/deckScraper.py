@@ -52,6 +52,7 @@ class DeckScraper:
                             self.getMtgTop8Links(link)
             except:
                 log(2, f"Unavailable url: {url}")
+                
         random.shuffle(self.to_scrape)
         log(0, "Done building")
 
@@ -69,7 +70,9 @@ class DeckScraper:
         for name in names:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
-            
+        
+        
+        random.shuffle(self.to_scrape)
         return self.to_scrape
 
 
@@ -163,6 +166,7 @@ class DeckScraper:
 
     def processMtgTop8(self, html):
         members = html.find_all("td", attrs={"class": "G14"})
+        log(0, "Top8 members:" + str(len(members)))
         deck = []
         if not members:
             return []
@@ -458,7 +462,13 @@ class Deck:
         countList = [int(x.count) for x in body.values()]
         shouldSave = max(countList) <= 40
             
-        return {"body":{"id": None, "name": self.name, "url": self.url, "cardInstances": [x.build_for_db() for x in body.values()]}, "shouldSave": shouldSave}
+        return {
+            "body":{
+                "id": None, 
+                "name": self.name, "url": self.url, 
+                "cardInstances": [x.build_for_db() for x in body.values()]
+            }, 
+            "shouldSave": shouldSave}
 
 if __name__ == "__main__":
     dS = DeckScraper([])
