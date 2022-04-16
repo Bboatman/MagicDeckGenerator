@@ -41,20 +41,17 @@ def scrape_sites():
         log(1, f"Ingesting {len(dS.to_scrape)} links")
 
         log(1, f"Scraping {len(dS.to_scrape)} initially")
-        startCount = copy.deepcopy(len(dS.seen))
         totalSeen = 0
 
-        toTry = len(dS.to_scrape) / 3
-        log(0, "Tries Before Research=" + str(toTry))
+        toTry = len(dS.to_scrape) * .4
+        seenThisSearch = 0
         while(len(dS.to_scrape) > 0):
-            seen = copy.deepcopy(dS.seen)
             threads = list()
-            log(1, f"Seen {len(dS.seen)} links")
             # Threading doesn't play nicely with transactional db updates
             for index in range(1):
                 lock = threading.Lock()
                 x = threading.Thread(target=thread_function,
-                                     args=(index, dS, lock,))
+                                     args=(index, dS, lock, totalSeen))
                 threads.append(x)
                 x.start()
 
@@ -62,10 +59,11 @@ def scrape_sites():
                 thread.join()
                 log(1, f"Thread {index} done")
 
-            totalSeen = len(dS.to_scrape) - startCount
+            totalSeen += 1
+            seenThisSearch += 1
 
-            if ((len(dS.to_scrape) < 5) or totalSeen < toTry) and prime and totalSeen < maxDecks:
-                log(1, f"Scraped {totalSeen} links")
+            if ((len(dS.to_scrape) < 5) or seenThisSearch > toTry) and prime and totalSeen < maxDecks:
+                log(1, f"Scraped {totalSeen} links, {seenThisSearch} processed this iteration")
                 log(0, "===== Searching DB =====")
                 poss_links = dS.primeFromDB()
                 log(1, f"Scraping {len(dS.to_scrape)} initially")
@@ -73,6 +71,8 @@ def scrape_sites():
                     random.shuffle(poss_links)
                     dS.to_scrape = poss_links
                     toTry = len(dS.to_scrape) / 2
+                    log(0, "Tries Before Research=" + str(toTry))
+                seenThisSearch = 0
 
         log(1, f"Total links seen: {totalSeen}")
         log(1, f"Links remaining unprocessed {len(dS.to_scrape)}")
@@ -84,8 +84,11 @@ def scrape_sites():
         raise
 
 
-def thread_function(name, dS, lock):
-    dS.generate_card_pool(lock)
+def thread_function(name, dS, lock, saveCount):
+    saved = dS.generate_card_pool(lock)
+    if (saved):
+        saveCount += 1
+    return
 
 
 def buildNewCardDB():
