@@ -192,13 +192,12 @@ class Vectorizor:
             key = t.name
             if (key not in seen):
                 to_create_array.append(t)
-                print(t)
+                seen[key] = t
             else:
                 existing_card = seen[key]
                 existing_card.text = t.text
                 existing_card.cardType = t.cardType
-                
-            self.generate_text_vector(existing_card, seen)
+                self.generate_text_vector(existing_card, seen)
             
         
         if len(to_create_array) > 0:
@@ -212,7 +211,6 @@ class Vectorizor:
     def bulk_update_and_propogate_changes(self, to_create_array: list, master_obj={}):
         body = [x.get_db_value() for x in to_create_array]
         if (len(body) > 0):
-            print("Bulk update", body[0])
             save_response = self.service.post_bulk_cards(body)
             print(save_response)
             if (save_response["status_code"] == 201):
@@ -221,7 +219,6 @@ class Vectorizor:
                     c: Card = Card(new_card)
                     self.generate_text_vector(c, master_obj)
                     processed_cards.append(c)
-                print(processed_cards)
                 return master_obj
                 
     def generate_text_vector(self, card, master_obj):
@@ -262,10 +259,6 @@ class Card:
             if 'multiverse_ids' in json_info and len(json_info['multiverse_ids']) > 0:
                 self.multiverse_id = json_info['multiverse_ids'][0]
             self.name = json_info['name'].lower()
-            if 'power' in json_info:
-                self.power = json_info['power']
-            else: 
-                self.power = "~"
             if 'toughness' in json_info:
                 self.toughness = json_info['toughness']
             else :
@@ -280,6 +273,12 @@ class Card:
             elif type(json_info['rarity'] is int):
                 self.rarity = json_info['rarity']
             self.cmc = int(json_info['cmc'])
+            if 'power' in json_info:
+                self.power = json_info['power']
+                if type(json_info['power']) is str:
+                    self.power = self.get_power()
+            else: 
+                self.power = -1
             
             if "id" in json_info:
                 try:
@@ -403,17 +402,7 @@ class Card:
         return tokens
 
     def save_to_db(self, service):
-        headers = {'Content-type': 'application/json'}
-        d = copy.deepcopy(self.__dict__) 
-        if 'text' in d:
-            d.pop('text') 
-        if 'simple_vec' in d:
-            d.pop('simple_vec')
-        if 'long_vec' in d:
-            d.pop('long_vec')
-        d['cardType'] = float(self.cardType[0] + self.cardType[1])
-        
-        body = json.dumps(d)
+        body = self.get_db_value()
         service.post_card(body)
 
     def get_db_value(self):
@@ -424,11 +413,18 @@ class Card:
             d.pop('simple_vec')
         if 'long_vec' in d:
             d.pop('long_vec')
-        if d["id"] is None:
+        if 'id' in d and type(d["id"]) is str :
             d.pop('id')
+            
         d["power"] = self.get_power()
         d["toughness"] = self.get_toughness()
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
+        
+        if type(d["id"]) is str:
+            d.pop("id")
+            
+        if 'multiverse_id' in d:
+            d.pop("multiverse_id")
         
         return json.loads(json.dumps(d))
 

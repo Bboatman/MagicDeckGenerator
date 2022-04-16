@@ -61,7 +61,7 @@ class DeckScraper:
             resp = self.service.get_unseen()
             names = resp["body"]
             random.shuffle(names)
-            names = names[:2]
+            names = names[:100]
             log(0, "Names: " + str(names))
         except:
             print("Issue connecting to the database")
@@ -69,7 +69,6 @@ class DeckScraper:
         for name in names:
             self.getMtgTop8Prime(name)
             self.getTappedOutPrime(name)
-            log(0, self.to_scrape)
             
         return self.to_scrape
 
