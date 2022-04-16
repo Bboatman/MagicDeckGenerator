@@ -61,7 +61,7 @@ class DeckScraper:
             resp = self.service.get_unseen()
             names = resp["body"]
             random.shuffle(names)
-            names = names[:100]
+            names = names[:5]
             log(0, "Names: " + str(names))
         except:
             print("Issue connecting to the database")
@@ -212,9 +212,10 @@ class DeckScraper:
         
 
     def saveToDB(self, deck):
-        body = deck.build_for_db()
-        print(body)
-        self.service.post_deck(body)
+        builtDeck = deck.build_for_db()
+        if builtDeck["shouldSave"]:
+            body = builtDeck["body"]
+            self.service.post_deck(body)
 
     def add_to_scrape_pool(self, link, parent_domain):
         new_url = link
@@ -246,9 +247,15 @@ class DeckMember:
         return {"name" : self.name, "multiverse_id" : self.multiverse_id, "count" : self.count}
     
     def increase(self, number = 1):
-        self.count += number
+        if type(self.count) is str:
+            self.count = int(self.count)
+        
+        self.count += int(number)
 
     def decrease(self, number = 1):
+        if type(self.count) is str:
+            self.count = int(self.count)
+            
         self.count -= number
 
 
@@ -440,9 +447,18 @@ class Deck:
 
     def build_for_db(self):
         deck_size = 0
+        body = {}
         for member in self.deckMembers:
             deck_size += int(member.count)
-        return {"id": None, "name": self.name, "url": self.url, "cardInstances": [x.build_for_db() for x in self.deckMembers]}
+            if member.name not in body:
+                body[member.name] = member
+            else: 
+                body[member.name].increase(member.count)
+        
+        countList = [int(x.count) for x in body.values()]
+        shouldSave = max(countList) <= 40
+            
+        return {"body":{"id": None, "name": self.name, "url": self.url, "cardInstances": [x.build_for_db() for x in body.values()]}, "shouldSave": shouldSave}
 
 if __name__ == "__main__":
     dS = DeckScraper([])

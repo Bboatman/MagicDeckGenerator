@@ -37,7 +37,7 @@ def scrape_sites():
         totalSeen = 0
 
         tried = 0
-        while(totalSeen < 100 and len(dS.to_scrape) > 0):
+        while(totalSeen < 10000 and len(dS.to_scrape) > 0):
             if prime and tried >= 6:
                 tried = 0
                 log(0, "===== Searching DB =====")
