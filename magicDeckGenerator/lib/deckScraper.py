@@ -15,22 +15,24 @@ import random
 
 log = Log("DECK SCRAPER", 0).log
 searchUnseen = False
+maxTop8 = 10
 
 # TODO: Make this variable dependant
 urls = [
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
-    #{"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
-    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}]
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
+    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
+    # {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
+    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
+    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
+    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=BL"},
+    #{"parent": 'https://www.mtgtop8.com/', "url": "format?f=MO"},
+    # {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PI"},
+    {"parent": 'https://www.mtgtop8.com/', "url": "format?f=ST"}
+]
 
 
 class DeckScraper:
@@ -50,21 +52,20 @@ class DeckScraper:
                 raw_html = Scraper(url).simple_get()
                 html = BeautifulSoup(raw_html, 'html.parser')
                 if u['parent'].find('tappedout') >= 0:
-                    for link in html.select('a'):
-                        if 'href' in link:
-                            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                                self.add_to_scrape_pool(
-                                    link['href'], 'http://tappedout.net')
-                            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                                self.add_to_scrape_pool(
-                                    link['href'], 'http://tappedout.net/')
+                    for link in html.find_all('a',  href=True):
+                        if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
+                            self.add_to_scrape_pool(
+                                link['href'], 'http://tappedout.net')
+                        elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
+                            self.add_to_scrape_pool(
+                                link['href'], 'http://tappedout.net/')
                 elif u['parent'].find('mtgtop8') >= 0:
-                    for link in html.select('a'):
-                        if 'href' in link and link['href'].find('archetype') >= 0:
+                    for link in html.find_all('a',  href=True):
+                        if 'archetype' in link['href']:
                             self.getMtgTop8Links(link)
             except Exception as e:
-                raise(e)
                 log(2, f"Unavailable url: {url}")
+                raise(e)
 
         random.shuffle(self.to_scrape)
         log(0, "Done building")
@@ -135,14 +136,15 @@ class DeckScraper:
         log(0, f"Found {count} links for {searchStr} in tappedOut")
 
     def getMtgTop8Links(self, link):
-        url = 'https://www.mtgtop8.com/' + link['href']
-        raw_html = Scraper(url).simple_get()
-        html = BeautifulSoup(raw_html, 'html.parser')
+        if len(self.to_scrape) < maxTop8:
+            url = 'https://www.mtgtop8.com/' + link['href']
+            raw_html = Scraper(url).simple_get()
+            html = BeautifulSoup(raw_html, 'html.parser')
 
-        for nlink in html.select('a'):
-            if nlink['href'].find('event?e') >= 0:
-                self.add_to_scrape_pool(
-                    nlink['href'], 'https://www.mtgtop8.com/')
+            for nlink in html.find_all('a',  href=True):
+                if nlink['href'].find('event?e') >= 0:
+                    self.add_to_scrape_pool(
+                        nlink['href'], 'https://www.mtgtop8.com/')
 
     def generate_card_pool(self, lock=None):
         popped = self.to_scrape.pop()
@@ -167,6 +169,8 @@ class DeckScraper:
                 html = BeautifulSoup(raw_html, 'html.parser')
                 if popped['parent'] == 'https://www.mtgtop8.com/':
                     deck = self.processMtgTop8(html)
+                    if len(deck) == 0:
+                        return ret
                 else:
                     deck = self.processTappedOut(html)
                 sleep(.5)
@@ -183,31 +187,25 @@ class DeckScraper:
             return ret
 
     def processMtgTop8(self, html):
-        members = html.find_all("td", attrs={"class": "G14"})
-        log(0, "Top8 members:" + str(len(members)))
+        members = html.find_all("div", attrs={"class": "deck_line"})
         deck = []
-        if not members:
-            return []
-        else:
-            try:
-                for item in members:
-                    if (item.find("div") and item.find("div").contents[0] != None):
-                        count = item.find("div").contents[0].strip()
-                        name = item.find("span").contents[0]
-                        card_id = 0
-                        deck.append(DeckMember(name, card_id, count))
-            except TypeError as err:
-                log(3, err)
+        try:
+            for item in members:
+                count = item.contents[0].strip()
+                name = item.find("span", attrs={"class": "L14"}).contents[0]
+                card_id = 0
+                deck_member = DeckMember(name, card_id, count)
+                print(deck_member)
+                deck.append(deck_member)
+        except Exception as e:
+            log(0, "Failure to parse cards")
+            log(0, e)
+            return
 
-        log(0, "Added MtgTop8 Cards")
-        similar_decks = html.select("div.S14 a")
-        for nlink in similar_decks:
-            if nlink['href'].find('event?e=') >= 0 and nlink['href'] not in self.seen:
+        for nlink in html.find_all('a',  href=True):
+            if nlink['href'].find('event?e') >= 0:
                 self.add_to_scrape_pool(
                     nlink['href'], 'https://www.mtgtop8.com/')
-            elif nlink['href'].find('?e=') >= 0 and nlink['href'] not in self.seen:
-                self.add_to_scrape_pool(
-                    'event' + nlink['href'], 'https://www.mtgtop8.com/')
 
         return deck
 

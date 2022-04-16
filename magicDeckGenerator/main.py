@@ -67,7 +67,7 @@ def scrape_sites():
             totalSeen += 1
             seenThisSearch += 1
 
-            if ((len(dS.to_scrape) < 5) or seenThisSearch > toTry) and prime and totalSeen < maxDecks:
+            if ((len(dS.to_scrape) < 5) or seenThisSearch > toTry) and prime and totalSeen < maxDecks and searchCards:
                 log(1, f"Scraped {totalSeen} links, {seenThisSearch} processed this iteration")
                 log(0, "===== Searching DB =====")
                 poss_links = dS.primeFromDB()
