@@ -3,7 +3,8 @@ import random
 import traceback
 import threading
 import sys
-import copy
+import urllib.request
+from requests import get
 
 from lib.deckScraper import DeckScraper
 from lib.cardVectorizor import Vectorizor
@@ -16,7 +17,7 @@ log = Log("MAIN", 1).log
 
 prime = True
 rebuild = False
-searchCards = False
+searchCards = True
 maxDecks = 100
 
 
@@ -37,10 +38,12 @@ def scrape_sites():
         dS.seen = seen
 
         if searchCards:
+            # Do prelim check against database for searchable cards cards
             poss_links = dS.primeFromDB()
             random.shuffle(poss_links)
             dS.to_scrape = poss_links
         else:
+            # Use constant urls from scraper file as priming urls
             dS.build()
 
         log(1, f"Ingesting {len(dS.to_scrape)} links")
@@ -63,6 +66,10 @@ def scrape_sites():
             for index, thread in enumerate(threads):
                 thread.join()
                 log(1, f"Thread {index} done")
+
+            if seenThisSearch % 10 == 0:
+                # Prevent getting stuck processing a single searched card or deck type
+                random.shuffle(dS.to_scrape)
 
             totalSeen += 1
             seenThisSearch += 1

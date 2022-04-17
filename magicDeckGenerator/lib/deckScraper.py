@@ -14,7 +14,8 @@ from bs4 import BeautifulSoup
 import random
 
 log = Log("DECK SCRAPER", 0).log
-searchUnseen = False
+searchUnseen = True
+unseenToScrape = 20
 maxTop8 = 10
 
 # TODO: Make this variable dependant
@@ -80,7 +81,8 @@ class DeckScraper:
             else:
                 resp = self.service.get_cards()
                 names = [x["name"] for x in resp["body"]]
-            names = names[:5]
+                random.shuffle(names)
+            names = names[:unseenToScrape]
             log(0, "Names: " + str(names))
         except:
             log(0, "Issue connecting to the database")
@@ -173,7 +175,6 @@ class DeckScraper:
                         return ret
                 else:
                     deck = self.processTappedOut(html)
-                sleep(.5)
 
             if (lock != None):
                 lock.acquire()
@@ -190,7 +191,7 @@ class DeckScraper:
             if deck_size >= 40 and deck_size < 160:
                 ret = self.saveToDB(deck_obj)
                 random.shuffle(self.to_scrape)
-
+            sleep(.5)
             return ret
 
     def processMtgTop8(self, html):

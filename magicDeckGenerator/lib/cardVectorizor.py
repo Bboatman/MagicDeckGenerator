@@ -1,4 +1,11 @@
-import json, math, pickle, re, time, copy, gc, os
+import json
+import math
+import pickle
+import re
+import time
+import copy
+import gc
+import os
 import numpy as np
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
@@ -6,8 +13,11 @@ from sklearn.manifold import TSNE
 from .log import Log
 from .service import DeckService
 import os
+import urllib.request
+from requests import get
 
 log = Log("CARD VECTORIZOR", 0).log
+update_local_json = False
 
 
 class Vectorizor:
@@ -15,62 +25,76 @@ class Vectorizor:
         log(0, "Initializing")
         dirname = os.path.dirname(__file__)
         self.model_dimensionality = model_dimensionality
-        self.card_json_path = os.path.join(dirname, '../models/scryfall-default-cards.json')
-        self.word2vec_model_path = os.path.join(dirname,'../models/card_vector_model.model')
-        self.model_dimensionality_path = os.path.join(dirname, '../models/card_' + str(self.model_dimensionality) + 'd_model.model')
-        self.twod_model_path = os.path.join(dirname,'../models/card_2d_model.model')
-        self.keyed_vector_path = os.path.join(dirname,'../models/card_vector.kv')
-        self.training_model_path = os.path.join(dirname,"../models/training_seq.p")
-        self.card_data_path = os.path.join(dirname,"../models/card_data.p")
+        self.card_json_path = os.path.join(
+            dirname, '../models/scryfall-default-cards.json')
+        self.word2vec_model_path = os.path.join(
+            dirname, '../models/card_vector_model.model')
+        self.model_dimensionality_path = os.path.join(
+            dirname, '../models/card_' + str(self.model_dimensionality) + 'd_model.model')
+        self.twod_model_path = os.path.join(
+            dirname, '../models/card_2d_model.model')
+        self.keyed_vector_path = os.path.join(
+            dirname, '../models/card_vector.kv')
+        self.training_model_path = os.path.join(
+            dirname, "../models/training_seq.p")
+        self.card_data_path = os.path.join(dirname, "../models/card_data.p")
         self.train_seq = []
         self.service = DeckService()
-        
-    def load_training_sequence(self, clean: bool =False):
+
+    def load_training_sequence(self, clean: bool = False):
         try:
-            obj = pickle.load( open( self.training_model_path, "rb" ) )
-        except Exception as e: 
+            obj = pickle.load(open(self.training_model_path, "rb"))
+        except Exception as e:
             print(e)
             self.get_cards_from_json()
-            obj = pickle.load( open( self.training_model_path, "rb" ) )
-        if clean: 
+            obj = pickle.load(open(self.training_model_path, "rb"))
+        if clean:
             log(0, "Cleaning Training Model")
-            self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=1, ns_exponent=.75) #TODO Change epochs back to 40
-            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=1, ns_exponent=.75) #TODO Change epochs back to 40
-            self.model = Doc2Vec(vector_size=52, min_count=1, epochs=1, ns_exponent=.75)  #TODO Change epochs back to 40
+            # TODO Change epochs back to 40
+            self.twodmodel = Doc2Vec(
+                vector_size=2, min_count=1, epochs=1, ns_exponent=.75)
+            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1,
+                                      epochs=1, ns_exponent=.75)  # TODO Change epochs back to 40
+            # TODO Change epochs back to 40
+            self.model = Doc2Vec(vector_size=52, min_count=1,
+                                 epochs=1, ns_exponent=.75)
         else:
             try:
-                self.twodmodel = Doc2Vec.load(self.twod_model_path) 
-                self.multimodel = Doc2Vec.load(self.model_dimensionality_path) 
+                self.twodmodel = Doc2Vec.load(self.twod_model_path)
+                self.multimodel = Doc2Vec.load(self.model_dimensionality_path)
                 self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
                 log(1, "Failed to load")
-                self.twodmodel = Doc2Vec(vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
-                self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
-                self.model = Doc2Vec(vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
+                self.twodmodel = Doc2Vec(
+                    vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
+                self.multimodel = Doc2Vec(
+                    vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
+                self.model = Doc2Vec(
+                    vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
-                
+
         count = len(self.model.docvecs)
         for i, phrase in enumerate(obj):
             doc = TaggedDocument(simple_preprocess(phrase), [i + count])
             self.train_seq.append(doc)
-        
+
         if clean:
             self.train_model(True)
 
     def train_model(self, build: bool = False):
-        if build: 
+        if build:
             log(0, "Building Vocab")
             self.model.build_vocab(self.train_seq)
             self.twodmodel.build_vocab(self.train_seq)
             self.multimodel.build_vocab(self.train_seq)
-        
+
         log(0, "Training Model")
-        self.model.train(self.train_seq, total_examples=self.model.corpus_count, \
-            epochs=self.model.epochs)
-        self.multimodel.train(self.train_seq, total_examples=self.model.corpus_count, \
-            epochs=self.model.epochs)
-        self.twodmodel.train(self.train_seq, total_examples=self.model.corpus_count, \
-            epochs=self.model.epochs)
+        self.model.train(self.train_seq, total_examples=self.model.corpus_count,
+                         epochs=self.model.epochs)
+        self.multimodel.train(self.train_seq, total_examples=self.model.corpus_count,
+                              epochs=self.model.epochs)
+        self.twodmodel.train(self.train_seq, total_examples=self.model.corpus_count,
+                             epochs=self.model.epochs)
         if build:
             f = open(self.word2vec_model_path, "w+")
             f.close()
@@ -81,9 +105,9 @@ class Vectorizor:
         self.model.save(self.word2vec_model_path)
         self.twodmodel.save(self.twod_model_path)
         self.multimodel.save(self.model_dimensionality_path)
-        
-    def get_cards_from_json(self, update_training_model: bool = False, \
-        write_to_db: bool = False, progress_print: bool = False):
+
+    def get_cards_from_json(self, update_training_model: bool = False,
+                            write_to_db: bool = False, progress_print: bool = False):
         log(0, "Getting cards from JSON")
         t = time.time()
         json_file = open(self.card_json_path)
@@ -94,8 +118,8 @@ class Vectorizor:
             obj = []
         else:
             try:
-                obj = pickle.load(open( self.training_model_path, "rb" ))
-            except: 
+                obj = pickle.load(open(self.training_model_path, "rb"))
+            except:
                 obj = []
                 update_training_model = True
 
@@ -111,12 +135,12 @@ class Vectorizor:
             card_array.append(c)
             count += 1
             obj += c.tokenize_text()
-            if len(obj)%8000 == 0:
+            if len(obj) % 8000 == 0:
                 if (progress_print):
                     log(0, f"{count} Processed")
                 if (update_training_model):
-                    pickle.dump(obj, open( self.training_model_path, "wb" ) )
-        
+                    pickle.dump(obj, open(self.training_model_path, "wb"))
+
         t = time.time() - t
         log(0, f"Got {len(card_array)} cards in {t} time")
         return card_array
@@ -127,18 +151,18 @@ class Vectorizor:
 
         data = [c.long_vec for c in cards]
         first_pass = alg.fit_transform(np.array(data))
-        
+
         log(0, "First Pass Complete")
         card_values = []
         mean = np.mean(first_pass)
         std = np.std(first_pass)
 
         for c in cards:
-            card_values.append([c.cardType[0], c.cardType[1], c.get_colorIdentity(mean, std), c.get_cmc(mean, std), \
-            c.get_toughness(mean, std), c.get_power(mean, std)])
-        
+            card_values.append([c.cardType[0], c.cardType[1], c.get_colorIdentity(mean, std), c.get_cmc(mean, std),
+                                c.get_toughness(mean, std), c.get_power(mean, std)])
+
         card_values = np.array(card_values)
-        first_pass = np.append(first_pass, card_values, axis=1) 
+        first_pass = np.append(first_pass, card_values, axis=1)
 
         alg = TSNE(n_components=n_components)
 
@@ -147,11 +171,12 @@ class Vectorizor:
         result = alg.fit_transform(first_pass)
 
         t = time.time() - t
-        log(0, f"Running TSNE on {n_components} dimensions, completed in {t} time")
+        log(0,
+            f"Running TSNE on {n_components} dimensions, completed in {t} time")
         ret = []
 
         save_arr = []
-        for i,c in enumerate(cards):
+        for i, c in enumerate(cards):
             x, y = result[i].tolist()
             c.save_decomp_res(x, y)
             name = c.name
@@ -161,7 +186,7 @@ class Vectorizor:
 
         if (save_to_db):
             self.bulk_update_and_propogate_changes(cards)
-        
+
         fieldnames = ['name', 'color']
         if (n_components == 2):
             fieldnames = ['name', 'color', 'x', 'y']
@@ -172,7 +197,7 @@ class Vectorizor:
 
         log(0, "Data Saved")
         return result
-    
+
     def build_clean_array(self, save_to_db):
         seen = {}
         to_create_array = []
@@ -184,11 +209,26 @@ class Vectorizor:
             key = c.name
             seen[key] = c
         print(len(seen))
-        
+
+        url = 'https://api.scryfall.com/bulk-data/oracle-cards'
+        path = os.getcwd()
+        path += "/magicDeckGenerator/models"
+
+        print('Beginning file download with urllib2...')
+
+        if update_local_json:
+            try:
+                resp = get(url)
+                downloadLoc = json.loads(resp.text)["download_uri"]
+                urllib.request.urlretrieve(
+                    downloadLoc, path + "/scryfall-default-cards.json")
+            except:
+                print("Issue connecting to card ref download")
+
         card_array = self.get_cards_from_json(True, True, True)
 
         log(0, "Cleaning Card Array")
-        for t in card_array: 
+        for t in card_array:
             key = t.name
             if (key not in seen):
                 to_create_array.append(t)
@@ -198,12 +238,12 @@ class Vectorizor:
                 existing_card.text = t.text
                 existing_card.cardType = t.cardType
                 self.generate_text_vector(existing_card, seen)
-            
-        
+
         if len(to_create_array) > 0:
             print("Doing Bulk update")
-            seen = self.bulk_update_and_propogate_changes(to_create_array, seen)
-            
+            seen = self.bulk_update_and_propogate_changes(
+                to_create_array, seen)
+
         ret = [x for x in list(seen.values()) if x != None]
         print(ret[0])
         return ret
@@ -220,19 +260,19 @@ class Vectorizor:
                     self.generate_text_vector(c, master_obj)
                     processed_cards.append(c)
                 return master_obj
-                
+
     def generate_text_vector(self, card, master_obj):
         key = card.name
         tokens = card.tokenize_text()
         card.simple_vec = self.multimodel.infer_vector(tokens)
         card.long_vec = self.model.infer_vector(tokens)
         master_obj[key] = card
-        
+
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
         log(0, "Running Graphing on Data Set")
         self.decompose_data(2, cleaned_array, save_to_db)
-            
+
 
 class Card:
     delimiters = "\n", ".", ",", ":"
@@ -261,14 +301,15 @@ class Card:
             self.name = json_info['name'].lower()
             if 'toughness' in json_info:
                 self.toughness = json_info['toughness']
-            else :
+            else:
                 self.toughness = "~"
             if 'oracle_text' in json_info:
                 self.text = json_info['oracle_text']
             if "type_line" in json_info:
                 self.cardType = json_info['type_line'].split("—")[0].strip()
             if type(json_info['rarity']) is str:
-                rarity = {'common': 0, 'uncommon': 1, 'rare': 2, 'mythic': 3, 'special': 4, 'bonus' : 5}
+                rarity = {'common': 0, 'uncommon': 1, 'rare': 2,
+                          'mythic': 3, 'special': 4, 'bonus': 5}
                 self.rarity = rarity[json_info['rarity'].strip().lower()]
             elif type(json_info['rarity'] is int):
                 self.rarity = json_info['rarity']
@@ -277,23 +318,23 @@ class Card:
                 self.power = json_info['power']
                 if type(json_info['power']) is str:
                     self.power = self.get_power()
-            else: 
+            else:
                 self.power = -1
-            
+
             if "id" in json_info:
                 try:
                     self.id = int(json_info['id'])
-                except: 
+                except:
                     self.id = None
-            else: 
+            else:
                 self.id = None
             if "x" in json_info:
                 self.x = json_info["x"]
-            else: 
+            else:
                 self.x = None
             if "y" in json_info:
                 self.y = json_info["y"]
-            else: 
+            else:
                 self.y = None
             if "color_identity" in json_info:
                 self.generate_colorIdentity(json_info['color_identity'])
@@ -320,7 +361,7 @@ class Card:
         if (int(toughness) > 20):
             toughness = 20
         return (int(toughness) * mean) / std
-    
+
     def get_power(self, mean=1, std=1):
         power = self.power
         if self.power == 'x':
@@ -366,29 +407,29 @@ class Card:
             if ('W' in color_array):
                 colorIdentity += 'W'
 
-            choices = {'C': 0, 'R': 1, 'U': 2, 'G': 3, \
-            'B': 4, 'W': 5, 'RU': 6, 'RG': 7, 'RB': 8, \
-            'RW': 9, 'UG': 10, 'UB': 11, 'UW': 12, 'GB': 13, \
-            'GW': 14, 'BW': 15, 'RUG': 16, 'RUB': 17, \
-            'RUW': 18, 'RGB': 19, 'RGW': 20, 'RBW': 21, \
-            'UGB': 22, 'UGW': 23, 'UBW': 24, 'GBW': 25, \
-            'RUGB': 26, 'RUGW': 27, 'RUBW': 28, 'RGBW': 29, \
-            'UGBW': 30, 'RUGBW': 31}
+            choices = {'C': 0, 'R': 1, 'U': 2, 'G': 3,
+                       'B': 4, 'W': 5, 'RU': 6, 'RG': 7, 'RB': 8,
+                       'RW': 9, 'UG': 10, 'UB': 11, 'UW': 12, 'GB': 13,
+                       'GW': 14, 'BW': 15, 'RUG': 16, 'RUB': 17,
+                       'RUW': 18, 'RGB': 19, 'RGW': 20, 'RBW': 21,
+                       'UGB': 22, 'UGW': 23, 'UBW': 24, 'GBW': 25,
+                       'RUGB': 26, 'RUGW': 27, 'RUBW': 28, 'RGBW': 29,
+                       'UGBW': 30, 'RUGBW': 31}
             self.colorIdentity = choices[colorIdentity]
 
     def generate_color_hex(self):
         color = "#777777"
-        if (self.colorIdentity > 5): #Multicolor Gold
+        if (self.colorIdentity > 5):  # Multicolor Gold
             color = "#FFD700"
-        elif (self.colorIdentity == 5): #White
+        elif (self.colorIdentity == 5):  # White
             color = "#FFFFFF"
-        elif (self.colorIdentity == 4): #Black
+        elif (self.colorIdentity == 4):  # Black
             color = "#000000"
-        elif (self.colorIdentity == 3): #Green
+        elif (self.colorIdentity == 3):  # Green
             color = "#008000"
-        elif (self.colorIdentity == 2): #Blue
+        elif (self.colorIdentity == 2):  # Blue
             color = "#0000FF"
-        elif (self.colorIdentity == 1): #Red
+        elif (self.colorIdentity == 1):  # Red
             color = "#FF0000"
         return color
 
@@ -406,26 +447,26 @@ class Card:
         service.post_card(body)
 
     def get_db_value(self):
-        d = copy.deepcopy(self.__dict__) 
+        d = copy.deepcopy(self.__dict__)
         if 'text' in d:
-            d.pop('text') 
+            d.pop('text')
         if 'simple_vec' in d:
             d.pop('simple_vec')
         if 'long_vec' in d:
             d.pop('long_vec')
-        if 'id' in d and type(d["id"]) is str :
+        if 'id' in d and type(d["id"]) is str:
             d.pop('id')
-            
+
         d["power"] = self.get_power()
         d["toughness"] = self.get_toughness()
         d['cardType'] = float(self.cardType[0] + self.cardType[1])
-        
+
         if type(d["id"]) is str:
             d.pop("id")
-            
+
         if 'multiverse_id' in d:
             d.pop("multiverse_id")
-        
+
         return json.loads(json.dumps(d))
 
     def save_decomp_res(self, x, y):
