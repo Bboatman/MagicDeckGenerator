@@ -15,17 +15,16 @@ import random
 
 log = Log("DECK SCRAPER", 0).log
 searchUnseen = True
-unseenToScrape = 20
 maxTop8 = 10
 
 # TODO: Make this variable dependant
 urls = [
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
-    # {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
+    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
@@ -42,11 +41,14 @@ class DeckScraper:
         self.to_scrape = []
         self.seen = []
         self.service = DeckService()
+        self.spider_search = False
 
     def prime(self):
         pickle.dump({"to_scrape": []}, open("./models/pickledLinks.p", "wb"))
 
     def build(self):
+        self.spider_search = True
+        print("Is spider searching")
         for u in self.start_urls:
             url = u['parent'] + u['url']
             try:
@@ -82,7 +84,6 @@ class DeckScraper:
                 resp = self.service.get_cards()
                 names = [x["name"] for x in resp["body"]]
                 random.shuffle(names)
-            names = names[:unseenToScrape]
             log(0, "Names: " + str(names))
         except:
             log(0, "Issue connecting to the database")
@@ -156,43 +157,38 @@ class DeckScraper:
         url = popped["parent"] + popped['url']
         ret = False
 
-        # TODO: take this mtgtop8 check out
-        if url in self.seen and 'https://www.mtgtop8.com/' not in popped['parent']:
-            log(0, f"Seen: {url}")
-            return ret
-        else:
-            raw_html = Scraper(url).simple_get()
-            log(0, f"Got: {url}")
-            deck = []
-            if raw_html:
-                html = BeautifulSoup(raw_html, 'html.parser')
-                if popped['parent'] == 'https://www.mtgtop8.com/':
-                    deck = self.processMtgTop8(html)
-                    if url in self.seen:
-                        log(0, f"Seen: {url}")
-                        return ret
-                    if len(deck) == 0 or url in self.seen:
-                        return ret
-                else:
-                    deck = self.processTappedOut(html)
-
-            if (lock != None):
-                lock.acquire()
-                self.seen.append(url)
-                lock.release()
+        raw_html = Scraper(url).simple_get()
+        log(0, f"Got: {url}")
+        deck = []
+        if raw_html:
+            html = BeautifulSoup(raw_html, 'html.parser')
+            if popped['parent'] == 'https://www.mtgtop8.com/':
+                deck = self.processMtgTop8(html)
+                if url in self.seen:
+                    log(0, f"Seen: {url}")
+                    return ret
+                if len(deck) == 0 or url in self.seen:
+                    return ret
             else:
-                self.seen.append(url)
+                deck = self.processTappedOut(html)
 
-            deck_obj = Deck(url, url)
-            for member in deck:
-                deck_obj.add_member_to_deck(member)
-            deck_size = deck_obj.get_deck_size()[1]
+        if (lock != None):
+            lock.acquire()
+            self.seen.append(url)
+            lock.release()
+        else:
+            self.seen.append(url)
 
-            if deck_size >= 40 and deck_size < 160:
-                ret = self.saveToDB(deck_obj)
-                random.shuffle(self.to_scrape)
-            sleep(.5)
-            return ret
+        deck_obj = Deck(url, url)
+        for member in deck:
+            deck_obj.add_member_to_deck(member)
+        deck_size = deck_obj.get_deck_size()[1]
+
+        if deck_size >= 40 and deck_size < 160:
+            ret = self.saveToDB(deck_obj)
+            random.shuffle(self.to_scrape)
+        sleep(.5)
+        return ret
 
     def processMtgTop8(self, html):
         members = html.find_all("div", attrs={"class": "deck_line"})
@@ -208,6 +204,9 @@ class DeckScraper:
             log(0, "Failure to parse cards")
             log(0, e)
             return
+
+        if not self.spider_search:
+            return deck
 
         for nlink in html.find_all('a',  href=True):
             boolval = '?e=' in nlink['href']
@@ -238,11 +237,16 @@ class DeckScraper:
 
         log(0, "Added TappedOut Cards")
         similar_decks = html.select("a.name")
+        if not self.spider_search:
+            return deck
+
         for link in similar_decks:
             if link['href'].find("/mtg-decks/") >= 0 and link['href'] not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net')
+                self.add_to_scrape_pool(
+                    link['href'], 'http://tappedout.net')
             elif link['href'].find("mtg-decks/") >= 0 and link['href'] not in self.seen:
-                self.add_to_scrape_pool(link['href'], 'http://tappedout.net/')
+                self.add_to_scrape_pool(
+                    link['href'], 'http://tappedout.net/')
 
         return deck
 

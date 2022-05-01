@@ -50,30 +50,18 @@ class Vectorizor:
             obj = pickle.load(open(self.training_model_path, "rb"))
         if clean:
             log(0, "Cleaning Training Model")
-            # TODO Change epochs back to 40
             self.twodmodel = Doc2Vec(
-                vector_size=2, min_count=1, epochs=1, ns_exponent=.75)
-            self.multimodel = Doc2Vec(vector_size=self.model_dimensionality, min_count=1,
-                                      epochs=1, ns_exponent=.75)  # TODO Change epochs back to 40
-            # TODO Change epochs back to 40
-            self.model = Doc2Vec(vector_size=52, min_count=1,
-                                 epochs=1, ns_exponent=.75)
+                vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
         else:
             try:
                 self.twodmodel = Doc2Vec.load(self.twod_model_path)
-                self.multimodel = Doc2Vec.load(self.model_dimensionality_path)
-                self.model = Doc2Vec.load(self.word2vec_model_path)
             except:
                 log(1, "Failed to load")
                 self.twodmodel = Doc2Vec(
                     vector_size=2, min_count=1, epochs=40, ns_exponent=.75)
-                self.multimodel = Doc2Vec(
-                    vector_size=self.model_dimensionality, min_count=1, epochs=40, ns_exponent=.75)
-                self.model = Doc2Vec(
-                    vector_size=52, min_count=1, epochs=40, ns_exponent=.75)
                 clean = True
 
-        count = len(self.model.docvecs)
+        count = len(self.twodmodel.docvecs)
         for i, phrase in enumerate(obj):
             doc = TaggedDocument(simple_preprocess(phrase), [i + count])
             self.train_seq.append(doc)
@@ -84,17 +72,11 @@ class Vectorizor:
     def train_model(self, build: bool = False):
         if build:
             log(0, "Building Vocab")
-            self.model.build_vocab(self.train_seq)
             self.twodmodel.build_vocab(self.train_seq)
-            self.multimodel.build_vocab(self.train_seq)
 
         log(0, "Training Model")
-        self.model.train(self.train_seq, total_examples=self.model.corpus_count,
-                         epochs=self.model.epochs)
-        self.multimodel.train(self.train_seq, total_examples=self.model.corpus_count,
-                              epochs=self.model.epochs)
-        self.twodmodel.train(self.train_seq, total_examples=self.model.corpus_count,
-                             epochs=self.model.epochs)
+        self.twodmodel.train(self.train_seq, total_examples=self.twodmodel.corpus_count,
+                             epochs=self.twodmodel.epochs)
         if build:
             f = open(self.word2vec_model_path, "w+")
             f.close()
@@ -102,9 +84,7 @@ class Vectorizor:
             f.close()
             f = open(self.twod_model_path, "w+")
             f.close()
-        self.model.save(self.word2vec_model_path)
         self.twodmodel.save(self.twod_model_path)
-        self.multimodel.save(self.model_dimensionality_path)
 
     def get_cards_from_json(self, update_training_model: bool = False,
                             write_to_db: bool = False, progress_print: bool = False):
@@ -145,17 +125,18 @@ class Vectorizor:
         log(0, f"Got {len(card_array)} cards in {t} time")
         return card_array
 
-    def decompose_data(self, n_components: int, cards: list, save_to_db: bool):
+    def decompose_data(self, cards: list, save_to_db: bool):
         t = time.time()
-        alg = TSNE(n_components=self.model_dimensionality)
+        alg = TSNE(n_components=2)
 
-        data = [c.long_vec for c in cards]
+        data = [c.simple_vec for c in cards]
         first_pass = alg.fit_transform(np.array(data))
-
+        print("PRINTING FIRST CARD:\n", data[0])
         log(0, "First Pass Complete")
         card_values = []
         mean = np.mean(first_pass)
         std = np.std(first_pass)
+        print(mean, std)
 
         for c in cards:
             card_values.append([c.cardType[0], c.cardType[1], c.get_colorIdentity(mean, std), c.get_cmc(mean, std),
@@ -164,7 +145,7 @@ class Vectorizor:
         card_values = np.array(card_values)
         first_pass = np.append(first_pass, card_values, axis=1)
 
-        alg = TSNE(n_components=n_components)
+        alg = TSNE(n_components=2)
 
         gc.collect()
         log(0, "Starting Second Pass")
@@ -172,7 +153,7 @@ class Vectorizor:
 
         t = time.time() - t
         log(0,
-            f"Running TSNE on {n_components} dimensions, completed in {t} time")
+            f"Running TSNE on 2 dimensions, completed in {t} time")
         ret = []
 
         save_arr = []
@@ -186,14 +167,6 @@ class Vectorizor:
 
         if (save_to_db):
             self.bulk_update_and_propogate_changes(cards)
-
-        fieldnames = ['name', 'color']
-        if (n_components == 2):
-            fieldnames = ['name', 'color', 'x', 'y']
-        elif (n_components == 3):
-            fieldnames = ['name', 'color', 'x', 'y', 'z']
-        else:
-            fieldnames += [str(x) for x in range(n_components)]
 
         log(0, "Data Saved")
         return result
@@ -214,17 +187,6 @@ class Vectorizor:
         path = os.getcwd()
         path += "/magicDeckGenerator/models"
 
-        print('Beginning file download with urllib2...')
-
-        if update_local_json:
-            try:
-                resp = get(url)
-                downloadLoc = json.loads(resp.text)["download_uri"]
-                urllib.request.urlretrieve(
-                    downloadLoc, path + "/scryfall-default-cards.json")
-            except:
-                print("Issue connecting to card ref download")
-
         card_array = self.get_cards_from_json(True, True, True)
 
         log(0, "Cleaning Card Array")
@@ -237,6 +199,8 @@ class Vectorizor:
                 existing_card = seen[key]
                 existing_card.text = t.text
                 existing_card.cardType = t.cardType
+                existing_card.toughness = t.toughness
+                existing_card.power = t.power
                 self.generate_text_vector(existing_card, seen)
 
         if len(to_create_array) > 0:
@@ -264,14 +228,13 @@ class Vectorizor:
     def generate_text_vector(self, card, master_obj):
         key = card.name
         tokens = card.tokenize_text()
-        card.simple_vec = self.multimodel.infer_vector(tokens)
-        card.long_vec = self.model.infer_vector(tokens)
+        card.simple_vec = self.twodmodel.infer_vector(tokens)
         master_obj[key] = card
 
     def graph_cards(self, save_to_db):
         cleaned_array = self.build_clean_array(save_to_db)
         log(0, "Running Graphing on Data Set")
-        self.decompose_data(2, cleaned_array, save_to_db)
+        self.decompose_data(cleaned_array, save_to_db)
 
 
 class Card:
@@ -287,12 +250,11 @@ class Card:
     colorIdentity = ''
     text = ''
     simple_vec = []
-    long_vec = []
 
     def __str__(self):
-        return "Name " + self.name + " - " + str(self.id) + ": type " + str(self.cardType) + "\n" + \
-            "rarity " + str(self.rarity) + ", cmc" + str(self.cmc) + "\n color" + str(self.colorIdentity) + " " + \
-            str(self.power) + "/" + str(self.toughness)
+        return "Name " + self.name + " - " + str(self.id) + ":\n type: " + str(self.cardType) + "\n" + \
+            " rarity: " + str(self.rarity) + "\n cmc: " + str(self.cmc) + "\n color: " + str(self.colorIdentity) + "\n power/toughness: " + \
+            str(self.power) + " / " + str(self.toughness)
 
     def __init__(self, json_info=None):
         if (json_info != None):
@@ -351,12 +313,13 @@ class Card:
             toughness = math.floor(self.cmc + (self.rarity / 2))
         elif self.toughness == '~':
             toughness = -1
-        elif self.toughness == '*':
+        elif '*' in self.toughness:
             toughness = math.floor(self.cmc + (self.rarity / 2))
         else:
             try:
-                toughness = int(self.toughness)
+                toughness = float(self.toughness)
             except:
+                print(self.toughness)
                 toughness = -2
         if (int(toughness) > 20):
             toughness = 20
@@ -368,11 +331,11 @@ class Card:
             power = math.floor(self.cmc + (self.rarity / 2))
         elif self.power == '~':
             power = -1
-        elif self.power == '*':
+        elif '*' in self.toughness:
             power = math.floor(self.cmc + (self.rarity / 2))
         else:
             try:
-                power = int(self.power)
+                power = float(self.power)
             except:
                 power = -2
         if (int(power) > 20):

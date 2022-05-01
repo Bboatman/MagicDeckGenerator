@@ -30,11 +30,12 @@ def scrape_sites():
     service = DeckService()
 
     try:
-        resp = service.get_decks()
+        resp = service.get_decks_urls()
         seen = []
         if resp["status_code"] == 200:
             response = resp["body"]
-            seen = [x["url"] for x in response]
+            seen = response
+            print(response)
         dS.seen = seen
 
         if searchCards:
@@ -103,7 +104,7 @@ def thread_function(name, dS, lock, saveCount):
     return
 
 
-def buildNewCardDB():
+def buildNewCardDB(v=Vectorizor(4)):
     log(1, "Vectorizing Cards")
     try:
         v = Vectorizor(4)
@@ -116,9 +117,10 @@ def buildNewCardDB():
 
 def vectorizeCards():
     log(1, "Vectorizing Cards")
-    model_dimensionality = 2  # TODO: Change back to 4
+    model_dimensionality = 4
     try:
         v = Vectorizor(model_dimensionality)
+        # buildNewCardDB(v)
         v.load_training_sequence(False)
         v.graph_cards(True)
     except Exception as e:
