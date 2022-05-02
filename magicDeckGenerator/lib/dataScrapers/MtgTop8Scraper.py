@@ -1,4 +1,3 @@
-from attr import attr
 from bs4 import BeautifulSoup
 from ..Deck import Deck
 from ..DeckMember import DeckMember
@@ -66,9 +65,7 @@ class MtgTop8Scraper(AbstractDataScraper):
                 else:
                     log(0, f"Found {local_count} links in MtgTop8")
                     return FoundLinksResult(local_count, url_list, self.url_parent)
-        return
-        #log(0, f"Found {local_count} links in MtgTop8")
-        # return FoundLinksResult(local_count, url_list, self.url_parent)
+        return FoundLinksResult(local_count, url_list, self.url_parent)
 
     def build_deck_from_html(self, source_url: str):
         soup = self.get_html_for_scrape(source_url)
