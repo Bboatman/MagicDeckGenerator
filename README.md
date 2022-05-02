@@ -90,6 +90,19 @@ select count(*) as total_cards from card;
 
 ```
 
+Clean up decks with missing card_instances
+
+```
+SET REFERENTIAL_INTEGRITY FALSE;
+BEGIN TRANSACTION;
+DELETE FROM deck WHERE id IN (select distinct(deck_id) from card_instance where missing = TRUE);
+DELETE FROM card_instance WHERE deck_id in (select distinct(deck_id) from card_instance where missing = TRUE);
+COMMIT;
+SET REFERENTIAL_INTEGRITY TRUE;
+
+select distinct(deck_id) from card_instance where missing = TRUE;
+```
+
 ## Big ToDos
 
 - Audit existing decks in db to verify that expected card count matches card-detail information for improve save check
@@ -135,4 +148,4 @@ select count(*) as total_cards from card;
 - Alternate taking turns from whole set
 - From limited card hands available as generator for players unfamiliar with drafting
 
-Built with {16} cups of coffee and {9} energy drinks
+Built with {17} cups of coffee and {10} energy drinks

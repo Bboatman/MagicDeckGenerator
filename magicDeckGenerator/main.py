@@ -18,7 +18,7 @@ log = Log("MAIN", 1).log
 prime = True
 rebuild = False
 searchCards = True
-maxDecks = 100
+maxDecks = 1000
 
 
 def test_connection():
@@ -120,7 +120,6 @@ def vectorizeCards():
     model_dimensionality = 4
     try:
         v = Vectorizor(model_dimensionality)
-        # buildNewCardDB(v)
         v.load_training_sequence(False)
         v.graph_cards(True)
     except Exception as e:
@@ -137,10 +136,14 @@ if __name__ == "__main__":
         vectorizeCards()
     elif (command == "buildcards"):
         buildNewCardDB()
+    elif (command == 'loadnew'):
+        buildNewCardDB()
+        vectorizeCards()
     elif (command == "help"):
         print("scrape: Scrape mtgTop8 and tappedOut for deck data")
         print("buildcards: Process Scryfall data and save it to the database")
         print("vectorize: Use machine learning to vectorize cards and reduce their dimensionality")
+        print("loadnew: download new scryfall data, update models, then vectorize to bring all cards up to date relationally")
         print("help: display all command options")
     else:
         print(

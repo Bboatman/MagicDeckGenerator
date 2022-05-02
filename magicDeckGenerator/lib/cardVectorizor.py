@@ -42,6 +42,22 @@ class Vectorizor:
         self.service = DeckService()
 
     def load_training_sequence(self, clean: bool = False):
+        if (clean):
+            url = 'https://api.scryfall.com/bulk-data/oracle-cards'
+            path = os.getcwd()  # this only works if running from main
+            path += "/models"
+
+            print('Beginning file download with urllib2...')
+            try:
+                resp = get(url)
+                downloadLoc = json.loads(resp.text)["download_uri"]
+                print(downloadLoc)
+                print(path)
+                urllib.request.urlretrieve(
+                    downloadLoc, path + "/scryfall-default-cards.json")
+            except:
+                print("Issue connecting to card ref download")
+
         try:
             obj = pickle.load(open(self.training_model_path, "rb"))
         except Exception as e:
@@ -129,8 +145,21 @@ class Vectorizor:
         t = time.time()
         alg = TSNE(n_components=2)
 
-        data = [c.simple_vec for c in cards]
-        first_pass = alg.fit_transform(np.array(data))
+        data = []
+        referencable_cards = []
+        for c in cards:
+            c.simple_vec = np.array(c.simple_vec)
+            if c.simple_vec is None or c.simple_vec.size is not 2:
+                print("Card {} has no descriptive text.".format(c.name))
+            else:
+                data.append(c.simple_vec)
+                referencable_cards.append(c)
+
+        if type(data).__module__ is not 'numpy':
+            print(data[0])
+            data = np.array(data)
+
+        first_pass = alg.fit_transform(data)
         print("PRINTING FIRST CARD:\n", data[0])
         log(0, "First Pass Complete")
         card_values = []
@@ -138,7 +167,7 @@ class Vectorizor:
         std = np.std(first_pass)
         print(mean, std)
 
-        for c in cards:
+        for c in referencable_cards:
             card_values.append([c.cardType[0], c.cardType[1], c.get_colorIdentity(mean, std), c.get_cmc(mean, std),
                                 c.get_toughness(mean, std), c.get_power(mean, std)])
 
@@ -157,7 +186,7 @@ class Vectorizor:
         ret = []
 
         save_arr = []
-        for i, c in enumerate(cards):
+        for i, c in enumerate(referencable_cards):
             x, y = result[i].tolist()
             c.save_decomp_res(x, y)
             name = c.name
@@ -166,7 +195,7 @@ class Vectorizor:
             ret.append([name, hexVal] + result[i].tolist())
 
         if (save_to_db):
-            self.bulk_update_and_propogate_changes(cards)
+            self.bulk_update_and_propogate_changes(referencable_cards)
 
         log(0, "Data Saved")
         return result
@@ -181,11 +210,8 @@ class Vectorizor:
             c = Card(card)
             key = c.name
             seen[key] = c
-        print(len(seen))
 
-        url = 'https://api.scryfall.com/bulk-data/oracle-cards'
-        path = os.getcwd()
-        path += "/magicDeckGenerator/models"
+        print(len(seen))
 
         card_array = self.get_cards_from_json(True, True, True)
 
@@ -194,6 +220,8 @@ class Vectorizor:
             key = t.name
             if (key not in seen):
                 to_create_array.append(t)
+                self.generate_text_vector(t, seen)
+                print(t)
                 seen[key] = t
             else:
                 existing_card = seen[key]
@@ -228,7 +256,7 @@ class Vectorizor:
     def generate_text_vector(self, card, master_obj):
         key = card.name
         tokens = card.tokenize_text()
-        card.simple_vec = self.twodmodel.infer_vector(tokens)
+        card.simple_vec = np.array(self.twodmodel.infer_vector(tokens))
         master_obj[key] = card
 
     def graph_cards(self, save_to_db):
