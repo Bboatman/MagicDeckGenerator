@@ -90,7 +90,7 @@ select count(*) as total_cards from card;
 
 ```
 
-Clean up decks with missing card_instances
+Clean up decks with missing card_instances because naming conventions are never standardized
 
 ```
 SET REFERENTIAL_INTEGRITY FALSE;
