@@ -9,9 +9,9 @@ from requests import get
 from lib.deckScraper import DeckScraper
 from lib.cardVectorizor import Vectorizor
 from lib.log import Log
-from lib.tests.TestConnections import ConnectionSuite
 
 from lib.service import DeckService
+from tests.TestMtgTop8Scraper import Top8Suite
 
 log = Log("MAIN", 1).log
 
@@ -19,10 +19,6 @@ prime = True
 rebuild = False
 searchCards = True
 maxDecks = 1000
-
-
-def test_connection():
-    ConnectionSuite()
 
 
 def scrape_sites():
@@ -126,11 +122,13 @@ def vectorizeCards():
         traceback.print_exc()
 
 
+def runTests():
+    Top8Suite()
+
+
 if __name__ == "__main__":
     command = sys.argv[1]
-    if (command == "test"):
-        test_connection()
-    elif (command == "scrape"):
+    if (command == "scrape"):
         scrape_sites()
     elif (command == "vectorize"):
         vectorizeCards()
@@ -139,6 +137,8 @@ if __name__ == "__main__":
     elif (command == 'loadnew'):
         buildNewCardDB()
         vectorizeCards()
+    elif (command == 'test'):
+        runTests()
     elif (command == "help"):
         print("scrape: Scrape mtgTop8 for deck data")
         print("buildcards: Process Scryfall data and save it to the database")
