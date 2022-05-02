@@ -140,7 +140,7 @@ if __name__ == "__main__":
         buildNewCardDB()
         vectorizeCards()
     elif (command == "help"):
-        print("scrape: Scrape mtgTop8 and tappedOut for deck data")
+        print("scrape: Scrape mtgTop8 for deck data")
         print("buildcards: Process Scryfall data and save it to the database")
         print("vectorize: Use machine learning to vectorize cards and reduce their dimensionality")
         print("loadnew: download new scryfall data, update models, then vectorize to bring all cards up to date relationally")

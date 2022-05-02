@@ -19,12 +19,6 @@ maxTop8 = 10
 
 # TODO: Make this variable dependant
 urls = [
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/standard/"},
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pauper/"},
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/modern/"},
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/tops/"},
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/arena/"},
-    {"parent": 'http://tappedout.net/', "url": "mtg-deck-builder/pioneer/"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format_limited"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PAU"},
     {"parent": 'https://www.mtgtop8.com/', "url": "format?f=PEA"},
@@ -54,15 +48,7 @@ class DeckScraper:
             try:
                 raw_html = Scraper(url).simple_get()
                 html = BeautifulSoup(raw_html, 'html.parser')
-                if u['parent'].find('tappedout') >= 0:
-                    for link in html.find_all('a',  href=True):
-                        if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                            self.add_to_scrape_pool(
-                                link['href'], 'http://tappedout.net')
-                        elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                            self.add_to_scrape_pool(
-                                link['href'], 'http://tappedout.net/')
-                elif u['parent'].find('mtgtop8') >= 0:
+                if u['parent'].find('mtgtop8') >= 0:
                     for link in html.find_all('a',  href=True):
                         if 'archetype' in link['href']:
                             self.getMtgTop8Links(link)
@@ -90,7 +76,6 @@ class DeckScraper:
 
         for name in names:
             self.getMtgTop8Prime(name)
-            self.getTappedOutPrime(name)
 
         random.shuffle(self.to_scrape)
         return self.to_scrape
@@ -117,26 +102,6 @@ class DeckScraper:
                     count += 1
 
         log(0, f"Found {count} links for {searchStr} in mtgTop8")
-
-    def getTappedOutPrime(self, searchStr):
-        sanitized = urllib.parse.quote(searchStr)
-        url = f"https://tappedout.net/search/?q={sanitized}"
-        raw_html = requests.get(url)
-        html = BeautifulSoup(raw_html.text, 'html.parser')
-        count = 0
-        for link in html.select('a'):
-            if link['href'].find("/mtg-decks/") >= 0 and url not in self.seen:
-                added = self.add_to_scrape_pool(
-                    link['href'], 'http://tappedout.net')
-                if added:
-                    count += 1
-            elif link['href'].find("mtg-decks/") >= 0 and url not in self.seen:
-                added = self.add_to_scrape_pool(
-                    link['href'], 'http://tappedout.net/')
-                if added:
-                    count += 1
-
-        log(0, f"Found {count} links for {searchStr} in tappedOut")
 
     def getMtgTop8Links(self, link):
         if len(self.to_scrape) < maxTop8:
@@ -169,8 +134,6 @@ class DeckScraper:
                     return ret
                 if len(deck) == 0 or url in self.seen:
                     return ret
-            else:
-                deck = self.processTappedOut(html)
 
         if (lock != None):
             lock.acquire()
@@ -220,33 +183,6 @@ class DeckScraper:
                 added.append(parsedVal)
                 self.add_to_scrape_pool(
                     "event" + urlVal, 'https://www.mtgtop8.com/')
-
-        return deck
-
-    def processTappedOut(self, html):
-        members = html.select('li.member a.qty.board')
-        deck = []
-        if not members:
-            return []
-        else:
-            for item in members:
-                name = item["data-orig"]
-                card_id = 0
-                count = item["data-qty"]
-                deck.append(DeckMember(name, card_id, count))
-
-        log(0, "Added TappedOut Cards")
-        similar_decks = html.select("a.name")
-        if not self.spider_search:
-            return deck
-
-        for link in similar_decks:
-            if link['href'].find("/mtg-decks/") >= 0 and link['href'] not in self.seen:
-                self.add_to_scrape_pool(
-                    link['href'], 'http://tappedout.net')
-            elif link['href'].find("mtg-decks/") >= 0 and link['href'] not in self.seen:
-                self.add_to_scrape_pool(
-                    link['href'], 'http://tappedout.net/')
 
         return deck
 
