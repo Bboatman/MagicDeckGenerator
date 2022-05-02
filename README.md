@@ -71,7 +71,7 @@ Okay, now what? So we turned some magic cards into numbers, and that was cool, b
 
 ### Scraping Time!
 
-Build out deck relationships from mtgTop8 and TappedOut
+Build out deck relationships from mtgTop8
 
 ```
 
