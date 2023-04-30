@@ -20,6 +20,14 @@ try:
 except SystemExit as e:
     pass
 
+try:
+    import nltk
+    print("trying to install nltk")
+    nltk.download('stopwords')
+    nltk.download('punkt')
+except Exception as e:
+    raise e
+
 import urllib.request
 import os, pip, json
 
