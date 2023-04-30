@@ -19,6 +19,8 @@ class Deck:
         body = {}
         deck_size = 0
         for member in self.deckMembers:
+            if member.is_sideboard:
+                continue
             deck_size += int(member.count)
             if member.name not in body:
                 body[member.name] = member

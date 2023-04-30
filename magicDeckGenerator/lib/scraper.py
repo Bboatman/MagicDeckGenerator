@@ -31,16 +31,15 @@ class Scraper:
         """
         if 'Content-Type' in resp.headers:
             content_type = resp.headers['Content-Type'].lower()
-            return (resp.status_code == 200 
-                    and content_type is not None 
+            return (resp.status_code == 200
+                    and content_type is not None
                     and content_type.find('html') > -1)
 
 
     def log_error(self, e):
         """
-        It is always a good idea to log errors. 
+        It is always a good idea to log errors.
         This function just prints them, but you can
         make it do anything.
         """
         print(e)
-
