@@ -22,6 +22,24 @@ Make sure primeModel has write_to_db set to false if you run this way
 
 I get it, you're all set up with all your dependencies and things, but what does this garbage fire code actually do? Well, right now not much, but it's a process, and that process will be outlined below as I slowly work towards a real usable tool
 
+## Start Database
+
+Start the database with
+
+```bash
+docker compose up
+```
+
+This will automatically run the migrations in `postgres/migrations` as well, the first time it is started.  To tear down the database for a fresh run, do
+
+```bash
+docker compose down -v
+```
+
+This will delete all of the data, too!
+
+The database will be running locally on `:5432`.  See the docker compose config for local dev connection info.
+
 ## Vectorize Your Cards
 
 ### Build Card Vectors
