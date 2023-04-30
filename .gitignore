@@ -3,6 +3,7 @@ magicDeckGenerator/__pycache__/*
 magicDeckGenerator/.vscode/
 magicDeckGenerator/.vscode/*
 magicDeckGenerator/models
+magicDeckGenerator/lib/vectorize/models/*
 *.pyc
 .env
 package-lock.json

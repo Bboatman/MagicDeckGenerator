@@ -11,7 +11,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.utils import simple_preprocess
 from sklearn.manifold import TSNE
 
-from .Card import Card
+from .Models.Card import Card
 from .log import Log
 from .service import DeckService
 import os
@@ -151,13 +151,13 @@ class Vectorizor:
         referencable_cards = []
         for c in cards:
             c.simple_vec = np.array(c.simple_vec)
-            if c.simple_vec is None or c.simple_vec.size is not 2:
+            if c.simple_vec is None or c.simple_vec.size != 2:
                 print("Card {} has no descriptive text.".format(c.name))
             else:
                 data.append(c.simple_vec)
                 referencable_cards.append(c)
 
-        if type(data).__module__ is not 'numpy':
+        if type(data).__module__ != 'numpy':
             print(data[0])
             data = np.array(data)
 

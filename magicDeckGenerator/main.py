@@ -105,7 +105,7 @@ def buildNewCardDB(v=Vectorizor(4)):
     try:
         v = Vectorizor(4)
         v.load_training_sequence(True)
-        v.build_clean_array(True)
+        v.build_clean_array(False)
     except Exception as e:
         print(e)
         traceback.print_exc()
