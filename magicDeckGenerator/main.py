@@ -15,23 +15,17 @@ from tests.TestMtgTop8Scraper import Top8Suite
 
 log = Log("MAIN", 1).log
 
-prime = True
+prime = False
 rebuild = False
-searchCards = True
+searchCards = False
 maxDecks = 1000
 
 
 def scrape_sites():
     dS = DeckScraper()
-    service = DeckService()
 
     try:
-        resp = service.get_decks_urls()
         seen = []
-        if resp["status_code"] == 200:
-            response = resp["body"]
-            seen = response
-            print(response)
         dS.seen = seen
 
         if searchCards:
